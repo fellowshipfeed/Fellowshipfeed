@@ -6,6 +6,7 @@ Your full database schema lives here — it was built in Claude but never commit
 
 | File | Purpose |
 |---|---|
+| `00_reset_database.sql` | Wipe old tables if you get "already exists" errors |
 | `anchor_schema.sql` | 16 tables, RLS, triggers, seed data (St. Luke parish) |
 | `anchor_auth_trigger.sql` | Auth linking + `my_session` view |
 | `02_provision_elideeb.sql` | Link your owner login |
@@ -17,10 +18,13 @@ Your full database schema lives here — it was built in Claude but never commit
 
 ### 1. Run the schema (Supabase → SQL Editor)
 
-Run **entire file**, in order:
+If you previously ran the old simplified schema and see **`relation "orgs" already exists`**, run `00_reset_database.sql` first.
 
-1. `anchor_schema.sql`
-2. `anchor_auth_trigger.sql`
+Then run **entire file**, in order:
+
+1. `00_reset_database.sql` — only if resetting (see above)
+2. `anchor_schema.sql`
+3. `anchor_auth_trigger.sql`
 
 This creates all tables, seed users, sample posts, groups, and resources.
 
@@ -73,3 +77,8 @@ Each needs a matching Auth user + link SQL (or the auth trigger links on first c
 - Events composer
 
 Those were listed as "next iterations" in the original README — the architecture is there, the UI components weren't built yet.
+
+## Troubleshooting
+
+**`relation "orgs" already exists`**  
+You have leftover tables from an earlier setup. Run `00_reset_database.sql`, then `anchor_schema.sql` and `anchor_auth_trigger.sql` again.
