@@ -6,8 +6,25 @@ export type Session = {
   initials: string;
   org_id: string;
   org_name: string;
+  org_slug?: string | null;
   primary_role: PrimaryRole;
   member_group_ids: string[] | null;
+};
+
+export type OrgResource = {
+  label: string;
+  key: string;
+  url: string | null;
+};
+
+export type OrgUser = {
+  id: string;
+  email: string;
+  name: string;
+  initials: string;
+  role_type: PrimaryRole | 'member';
+  group_id: string | null;
+  group_name: string | null;
 };
 
 export type PendingPost = {

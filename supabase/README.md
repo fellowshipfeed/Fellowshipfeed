@@ -11,6 +11,7 @@ Your full database schema lives here — it was built in Claude but never commit
 | `anchor_auth_trigger.sql` | Auth linking + `my_session` view |
 | `02_provision_elideeb.sql` | Link your owner login |
 | `03_provision_member.sql` | Link member test login |
+| `04_head_user_management.sql` | Lets parish heads edit member names |
 
 > **Note:** `01_schema.sql` was a temporary simplified schema created during deployment troubleshooting. Use the `anchor_*.sql` files instead.
 

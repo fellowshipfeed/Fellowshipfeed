@@ -1,3 +1,4 @@
+import Link from 'next/link';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { TopBar } from '@/components/TopBar';
@@ -43,6 +44,13 @@ export default async function HeadPage() {
         rolePill="Head"
       />
       <div className="max-w-4xl mx-auto px-6 py-6">
+        <div className="flex flex-wrap items-center gap-3 mb-4">
+          <span className="text-sm font-medium text-accent">Assign admins</span>
+          <span className="text-ink-muted">·</span>
+          <Link href="/head/people" className="text-sm text-ink-muted hover:text-ink">
+            Manage people →
+          </Link>
+        </div>
         <div className="bg-white border border-line rounded-xl p-6 mb-4 flex items-center gap-4">
           <div className="w-12 h-12 rounded-lg bg-head-soft text-head flex items-center justify-center">
             <svg width="22" height="22" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="5" r="2.5" stroke="currentColor" strokeWidth="1.6"/><path d="M3 13c0-2.8 2.2-5 5-5s5 2.2 5 5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"/></svg>
