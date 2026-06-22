@@ -48,6 +48,28 @@ export type FeedGroup = {
   name: string;
   slug: string;
   color: string;
+  description?: string | null;
+  member_count?: number;
+  admin_name?: string | null;
+  joined?: boolean;
+};
+
+export type FeedEvent = {
+  id: string;
+  title: string;
+  starts_at: string;
+  location: string | null;
+  group_id: string | null;
+  group_slug: string | null;
+  group_name: string | null;
+  rsvped: boolean;
+};
+
+export type PostReactions = {
+  heart: number;
+  pray: number;
+  in: number;
+  amen: number;
 };
 
 export type FeedPost = {
@@ -55,8 +77,13 @@ export type FeedPost = {
   body: string;
   group_id: string | null;
   is_parish_wide: boolean;
+  pinned: boolean;
   status: string;
   created_at: string;
   author: { id: string; name: string; initials: string } | null;
+  author_is_admin?: boolean;
   attachments: { id: string; type: string; url: string; metadata: Record<string, unknown> | null }[];
+  reactions: PostReactions;
+  my_reactions: string[];
+  saved: boolean;
 };

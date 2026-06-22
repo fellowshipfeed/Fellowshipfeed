@@ -1,104 +1,180 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
-import type { FeedGroup, FeedPost, Session } from '@/lib/types';
-import { getGroupStyle } from '@/lib/group-styles';
-import { getInitials } from '@/lib/format';
+import type { FeedEvent, FeedGroup, FeedPost, OrgResource, Session } from '@/lib/types';
 import { MemberTopBar } from './MemberTopBar';
 import { MemberSidebar, type FeedView } from './MemberSidebar';
 import { PostCard } from './PostCard';
-import type { OrgResource } from '@/lib/types';
+import { UpcomingEvents } from './UpcomingEvents';
+import { PostComposer } from './PostComposer';
+import { FeedHeader } from './FeedHeader';
+import { ExploreGroups } from './ExploreGroups';
 
 type Props = {
   session: Session;
   orgCity: string | null;
   groups: FeedGroup[];
+  allGroups: FeedGroup[];
   resources: OrgResource[];
+  events: FeedEvent[];
   approvedPosts: FeedPost[];
   pendingPosts: FeedPost[];
+  myPosts: FeedPost[];
 };
+
+function patchPost(posts: FeedPost[], postId: string, patch: Partial<FeedPost>): FeedPost[] {
+  return posts.map(p => (p.id === postId ? { ...p, ...patch } : p));
+}
 
 export function MemberPortal({
   session,
   orgCity,
-  groups,
+  groups: initialGroups,
+  allGroups: initialAllGroups,
   resources,
-  approvedPosts,
-  pendingPosts,
+  events,
+  approvedPosts: initialApproved,
+  pendingPosts: initialPending,
+  myPosts: initialMyPosts,
 }: Props) {
+  const router = useRouter();
   const [view, setView] = useState<FeedView>('home');
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
-  const [pending, setPending] = useState(pendingPosts);
-  const [body, setBody] = useState('');
-  const [selectedGroup, setSelectedGroup] = useState(groups[0]?.id ?? '');
-  const [submitting, setSubmitting] = useState(false);
-  const [message, setMessage] = useState('');
+  const [groups, setGroups] = useState(initialGroups);
+  const [allGroups, setAllGroups] = useState(initialAllGroups);
+  const [approvedPosts, setApprovedPosts] = useState(initialApproved);
+  const [pending, setPending] = useState(initialPending);
+  const [myPosts, setMyPosts] = useState(initialMyPosts);
 
   const activeGroup = groups.find(g => g.id === activeGroupId) ?? null;
-  const headerStyle = activeGroup ? getGroupStyle(activeGroup.slug) : getGroupStyle('home');
+  const memberGroupIds = useMemo(() => new Set(groups.map(g => g.id)), [groups]);
+
+  const savedPosts = useMemo(() => approvedPosts.filter(p => p.saved), [approvedPosts]);
+  const savedCount = savedPosts.length;
+
+  const visibleEvents = useMemo(() => {
+    if (view === 'home') {
+      return events.filter(e => !e.group_id || memberGroupIds.has(e.group_id));
+    }
+    if (view === 'group' && activeGroupId) {
+      return events.filter(e => e.group_id === activeGroupId);
+    }
+    return [];
+  }, [view, activeGroupId, events, memberGroupIds]);
 
   const visiblePosts = useMemo(() => {
     if (view === 'pending') return pending;
+    if (view === 'yourPosts') return myPosts;
+    if (view === 'saved') return savedPosts;
     if (view === 'group' && activeGroupId) {
       return approvedPosts.filter(p => p.group_id === activeGroupId && !p.is_parish_wide);
     }
-    return approvedPosts;
-  }, [view, activeGroupId, approvedPosts, pending]);
+    if (view === 'home') {
+      return approvedPosts.filter(
+        p => p.is_parish_wide || (p.group_id && memberGroupIds.has(p.group_id)),
+      );
+    }
+    return [];
+  }, [view, activeGroupId, approvedPosts, pending, myPosts, savedPosts]);
+
+  const showComposer = view === 'home' || view === 'group';
+  const showEvents = view === 'home' || view === 'group';
 
   function handleViewChange(next: FeedView, groupId?: string | null) {
     setView(next);
     setActiveGroupId(groupId ?? null);
   }
 
+  const updatePostEverywhere = useCallback((postId: string, patch: Partial<FeedPost>) => {
+    setApprovedPosts(prev => patchPost(prev, postId, patch));
+    setMyPosts(prev => patchPost(prev, postId, patch));
+  }, []);
+
   async function cancelPendingPost(postId: string) {
     if (!window.confirm('Cancel this post? It will be removed from the review queue.')) return;
     const supabase = createClient();
     const { error } = await supabase.from('posts').delete().eq('id', postId).eq('status', 'pending');
-    if (error) {
-      setMessage(error.message);
-      return;
-    }
+    if (error) return;
     setPending(prev => prev.filter(p => p.id !== postId));
   }
 
-  async function submitPost() {
-    if (!body.trim() || !selectedGroup || !session.org_id) return;
-    setSubmitting(true);
-    setMessage('');
+  async function submitPost(body: string, groupIds: string[]) {
     const supabase = createClient();
-    const { error } = await supabase.from('posts').insert({
-      author_id: session.user_id,
-      group_id: selectedGroup,
-      org_id: session.org_id,
-      body: body.trim(),
-      status: 'pending',
-      is_parish_wide: false,
+    for (const groupId of groupIds) {
+      const { error } = await supabase.from('posts').insert({
+        author_id: session.user_id,
+        group_id: groupId,
+        org_id: session.org_id,
+        body,
+        status: 'pending',
+        is_parish_wide: false,
+      });
+      if (error) throw new Error(error.message);
+    }
+    router.refresh();
+  }
+
+  async function joinGroup(groupId: string) {
+    const supabase = createClient();
+    const { error } = await supabase.from('group_memberships').insert({
+      user_id: session.user_id,
+      group_id: groupId,
     });
-    setSubmitting(false);
-    if (error) {
-      setMessage(error.message);
+    if (error) throw new Error(error.message);
+    const joined = allGroups.find(g => g.id === groupId);
+    if (joined && !groups.some(g => g.id === groupId)) {
+      setGroups(prev => [...prev, { ...joined, joined: true }]);
+    }
+    setAllGroups(prev => prev.map(g => (g.id === groupId ? { ...g, joined: true } : g)));
+    router.refresh();
+  }
+
+  async function toggleReaction(postId: string, kind: string) {
+    const supabase = createClient();
+    const post =
+      approvedPosts.find(p => p.id === postId) ??
+      myPosts.find(p => p.id === postId) ??
+      savedPosts.find(p => p.id === postId);
+    if (!post) return;
+
+    const has = post.my_reactions.includes(kind);
+    if (has) {
+      await supabase.from('reactions').delete().eq('post_id', postId).eq('user_id', session.user_id).eq('kind', kind);
+      const reactions = { ...post.reactions };
+      reactions[kind as keyof typeof reactions] = Math.max(0, reactions[kind as keyof typeof reactions] - 1);
+      updatePostEverywhere(postId, {
+        reactions,
+        my_reactions: post.my_reactions.filter(k => k !== kind),
+      });
     } else {
-      setBody('');
-      setMessage('Submitted for review — your group admin will see it shortly.');
-      setTimeout(() => setMessage(''), 4000);
-      window.location.reload();
+      await supabase.from('reactions').insert({ post_id: postId, user_id: session.user_id, kind });
+      const reactions = { ...post.reactions };
+      reactions[kind as keyof typeof reactions] += 1;
+      updatePostEverywhere(postId, {
+        reactions,
+        my_reactions: [...post.my_reactions, kind],
+      });
     }
   }
 
-  const showComposer = view === 'home' || view === 'group';
-  const title =
-    view === 'pending'
-      ? 'Posts Pending Review'
-      : view === 'group' && activeGroup
-        ? activeGroup.name
-        : 'My Feed';
-  const meta =
-    view === 'pending'
-      ? 'Your posts awaiting admin approval'
-      : view === 'group' && activeGroup
-        ? `${visiblePosts.length} approved post${visiblePosts.length === 1 ? '' : 's'}`
-        : `All groups · ${groups.length} joined`;
+  async function toggleSave(postId: string) {
+    const supabase = createClient();
+    const post =
+      approvedPosts.find(p => p.id === postId) ??
+      myPosts.find(p => p.id === postId) ??
+      savedPosts.find(p => p.id === postId);
+    if (!post) return;
+
+    if (post.saved) {
+      await supabase.from('saves').delete().eq('post_id', postId).eq('user_id', session.user_id);
+      updatePostEverywhere(postId, { saved: false });
+    } else {
+      await supabase.from('saves').insert({ post_id: postId, user_id: session.user_id });
+      updatePostEverywhere(postId, { saved: true });
+    }
+  }
 
   return (
     <div className="min-h-screen bg-cream">
@@ -117,120 +193,122 @@ export function MemberPortal({
           activeView={view}
           activeGroupId={activeGroupId}
           pendingCount={pending.length}
+          savedCount={savedCount}
           onViewChange={handleViewChange}
         />
 
         <main className="min-w-0">
-          <div className="bg-white border border-line rounded-xl p-5 sm:p-6 mb-4 flex gap-4 items-center">
-            {(view === 'pending' || (view === 'group' && activeGroup)) && (
-              <div className={`w-[52px] h-[52px] rounded-[10px] flex items-center justify-center font-display text-xl font-medium shrink-0 ${headerStyle.icon}`}>
-                {view === 'pending' ? (
-                  <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.6" />
-                    <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                  </svg>
-                ) : (
-                  getInitials(activeGroup!.name, 2)
-                )}
-              </div>
-            )}
-            <div className="flex-1 min-w-0">
-              <h1 className="font-display text-2xl font-medium tracking-tight">{title}</h1>
-              <p className="text-xs text-ink-muted mt-1">{meta}</p>
-            </div>
-          </div>
-
-          {pending.length > 0 && view !== 'pending' && (
-            <div className="bg-pending-soft border border-pending rounded-xl px-4 py-3 mb-4 flex items-center gap-3 text-sm">
-              <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="text-pending shrink-0" aria-hidden="true">
-                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-              <span className="flex-1">
-                You have <strong className="text-pending font-semibold">{pending.length}</strong> post
-                {pending.length === 1 ? '' : 's'} awaiting admin review.
-              </span>
-              <button type="button" onClick={() => handleViewChange('pending')} className="text-pending text-xs font-medium underline">
-                See pending
-              </button>
-            </div>
-          )}
-
-          {showComposer && (
-            <div className="bg-white border border-line rounded-xl p-4 mb-4">
-              <div className="flex gap-3">
-                <div className="w-8 h-8 rounded-full bg-accent-soft text-accent font-semibold text-xs flex items-center justify-center shrink-0">
-                  {session.initials}
-                </div>
-                <textarea
-                  value={body}
-                  onChange={e => setBody(e.target.value)}
-                  placeholder="Say something with your group(s)…"
-                  rows={2}
-                  className="flex-1 p-2 border-0 bg-transparent focus:outline-none resize-none text-sm placeholder:text-ink-muted"
-                />
-              </div>
-              <div className="flex flex-wrap items-center justify-between gap-3 mt-3 pt-3 border-t border-line-soft">
-                <div className="flex items-center gap-2 text-xs text-ink-muted">
-                  <span>Post to:</span>
-                  <select
-                    value={selectedGroup}
-                    onChange={e => setSelectedGroup(e.target.value)}
-                    className="text-xs border border-line rounded-md px-2 py-1 bg-white"
-                  >
-                    {groups.map(g => (
-                      <option key={g.id} value={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                  <span className="hidden sm:flex items-center gap-1 text-pending">
-                    <svg width="11" height="11" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                      <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
-                      <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-                    </svg>
-                    Reviewed before posting
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  onClick={submitPost}
-                  disabled={submitting || !body.trim()}
-                  className="bg-accent text-white font-medium text-sm px-4 py-2 rounded-md hover:bg-accent-hover disabled:opacity-50"
-                >
-                  {submitting ? 'Submitting…' : 'Submit for review'}
-                </button>
-              </div>
-              {message && (
-                <div className="mt-2 text-xs text-success bg-success-soft border border-success/20 rounded p-2">{message}</div>
-              )}
-            </div>
-          )}
-
-          {visiblePosts.length === 0 ? (
-            <div className="bg-white border border-dashed border-line rounded-xl p-12 text-center">
-              <div className="text-2xl mb-2">{view === 'pending' ? '✓' : '👋'}</div>
-              <h3 className="font-display text-lg font-medium mb-1">
-                {view === 'pending' ? 'Nothing pending' : 'Welcome'}
-              </h3>
-              <p className="text-sm text-ink-soft max-w-xs mx-auto">
-                {view === 'pending'
-                  ? 'When you submit a post, it appears here until an admin approves it.'
-                  : 'When members of your groups post, you will see it here.'}
-              </p>
-            </div>
-          ) : (
-            visiblePosts.map(p => (
-              <PostCard
-                key={p.id}
-                post={p}
-                groups={groups}
-                onCancel={view === 'pending' ? cancelPendingPost : undefined}
+          {view === 'explore' ? (
+            <>
+              <FeedHeader variant="explore" />
+              <ExploreGroups
+                groups={allGroups}
+                onJoin={joinGroup}
+                onOpenGroup={id => handleViewChange('group', id)}
               />
-            ))
+            </>
+          ) : (
+            <>
+              {view === 'group' && activeGroup && <FeedHeader variant="group" group={activeGroup} />}
+              {view === 'pending' && <FeedHeader variant="pending" />}
+              {view === 'yourPosts' && <FeedHeader variant="yourPosts" />}
+              {view === 'saved' && <FeedHeader variant="saved" />}
+
+              {showEvents && visibleEvents.length > 0 && (
+                <UpcomingEvents events={visibleEvents} showGroupTag={view === 'home'} />
+              )}
+
+              {pending.length > 0 && (view === 'home' || view === 'group') && (
+                <div className="bg-pending-soft border border-pending rounded-xl px-4 py-3 mb-4 flex items-center gap-3 text-[13px]">
+                  <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="text-pending shrink-0" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
+                    <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                  </svg>
+                  <span className="flex-1 text-ink">
+                    You have{' '}
+                    <strong className="text-pending font-semibold">
+                      {pending.length} post{pending.length === 1 ? '' : 's'}
+                    </strong>{' '}
+                    awaiting admin review.
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => handleViewChange('pending')}
+                    className="text-pending text-xs font-medium underline"
+                  >
+                    See pending
+                  </button>
+                </div>
+              )}
+
+              {showComposer && (
+                <PostComposer
+                  userInitials={session.initials}
+                  groups={groups}
+                  fixedGroupId={view === 'group' ? activeGroupId : null}
+                  onSubmit={submitPost}
+                />
+              )}
+
+              {visiblePosts.length === 0 ? (
+                <EmptyState view={view} />
+              ) : (
+                visiblePosts.map(p => (
+                  <PostCard
+                    key={p.id}
+                    post={p}
+                    groups={groups}
+                    orgName={session.org_name}
+                    showYou={view === 'pending' || view === 'yourPosts'}
+                    onCancel={view === 'pending' ? cancelPendingPost : undefined}
+                    onToggleReaction={view !== 'pending' ? toggleReaction : undefined}
+                    onToggleSave={view !== 'pending' ? toggleSave : undefined}
+                  />
+                ))
+              )}
+            </>
           )}
         </main>
       </div>
+    </div>
+  );
+}
+
+function EmptyState({ view }: { view: FeedView }) {
+  const copy: Record<string, { emoji: string; title: string; body: string }> = {
+    pending: {
+      emoji: '✓',
+      title: 'Nothing pending',
+      body: 'Posts you submit will appear here while they wait for an admin to approve them.',
+    },
+    yourPosts: {
+      emoji: '📝',
+      title: 'No posts yet',
+      body: 'When you share something with your groups, it will show up here.',
+    },
+    saved: {
+      emoji: '🔖',
+      title: 'Nothing saved',
+      body: 'Tap Save on any post to bookmark it for later.',
+    },
+    group: {
+      emoji: '👋',
+      title: 'Welcome',
+      body: 'When members of this group post, you will see it here.',
+    },
+    home: {
+      emoji: '👋',
+      title: 'Welcome',
+      body: 'When members of your groups post, you will see it here.',
+    },
+  };
+  const c = copy[view] ?? copy.home;
+
+  return (
+    <div className="bg-white border border-dashed border-line rounded-xl py-10 px-6 text-center">
+      <div className="text-2xl mb-2">{c.emoji}</div>
+      <h3 className="font-display text-[17px] font-medium mb-1.5">{c.title}</h3>
+      <p className="text-[13px] text-ink-soft max-w-xs mx-auto leading-relaxed">{c.body}</p>
     </div>
   );
 }

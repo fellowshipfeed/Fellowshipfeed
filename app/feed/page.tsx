@@ -1,29 +1,57 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { MemberPortal } from '@/components/member/MemberPortal';
-import type { FeedGroup, FeedPost, OrgResource, Session } from '@/lib/types';
+import type { FeedEvent, FeedGroup, FeedPost, OrgResource, Session } from '@/lib/types';
 import { firstRelation } from '@/lib/supabase-helpers';
 import { filterOrgResources } from '@/lib/org-resources';
+import { EMPTY_REACTIONS, aggregateReactions } from '@/lib/post-reactions';
 
 export const dynamic = 'force-dynamic';
 
 const postSelect = `
-  id, body, group_id, is_parish_wide, status, created_at,
+  id, body, group_id, is_parish_wide, pinned, status, created_at,
   author:users!posts_author_id_fkey(id, name, initials),
   attachments(id, type, url, metadata)
 `;
 
-function mapPosts(rows: Record<string, unknown>[] | null): FeedPost[] {
-  return (rows ?? []).map(row => ({
-    id: row.id as string,
-    body: row.body as string,
-    group_id: row.group_id as string | null,
-    is_parish_wide: row.is_parish_wide as boolean,
-    status: row.status as string,
-    created_at: row.created_at as string,
-    author: firstRelation(row.author as FeedPost['author'] | FeedPost['author'][]),
-    attachments: (row.attachments as FeedPost['attachments']) ?? [],
-  }));
+type RawPost = Record<string, unknown>;
+
+function mapPosts(
+  rows: RawPost[] | null,
+  reactionMap: Map<string, { reactions: FeedPost['reactions']; my_reactions: string[] }>,
+  savedIds: Set<string>,
+  adminPairs: Set<string>,
+): FeedPost[] {
+  return (rows ?? []).map(row => {
+    const id = row.id as string;
+    const author = firstRelation(row.author as FeedPost['author'] | FeedPost['author'][]);
+    const groupId = row.group_id as string | null;
+    const reactionEntry = reactionMap.get(id);
+    const adminKey = author && groupId ? `${author.id}:${groupId}` : '';
+
+    return {
+      id,
+      body: row.body as string,
+      group_id: groupId,
+      is_parish_wide: row.is_parish_wide as boolean,
+      pinned: (row.pinned as boolean) ?? false,
+      status: row.status as string,
+      created_at: row.created_at as string,
+      author,
+      author_is_admin: adminKey ? adminPairs.has(adminKey) : false,
+      attachments: (row.attachments as FeedPost['attachments']) ?? [],
+      reactions: reactionEntry?.reactions ?? { ...EMPTY_REACTIONS },
+      my_reactions: reactionEntry?.my_reactions ?? [],
+      saved: savedIds.has(id),
+    };
+  });
+}
+
+function sortPosts(posts: FeedPost[]): FeedPost[] {
+  return [...posts].sort((a, b) => {
+    if (a.pinned !== b.pinned) return a.pinned ? -1 : 1;
+    return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+  });
 }
 
 export default async function FeedPage() {
@@ -33,49 +61,164 @@ export default async function FeedPage() {
   if (!session) redirect('/login');
   if (!session.org_id) redirect('/console');
 
-  const { data: org } = await supabase.from('orgs').select('city').eq('id', session.org_id).single();
+  const memberGroupIds = session.member_group_ids ?? [];
 
-  const { data: groupsData } = await supabase
-    .from('groups')
-    .select('id, name, slug, color')
-    .in('id', session.member_group_ids || []);
+  const [
+    { data: org },
+    { data: groupsData },
+    { data: allGroupsData },
+    { data: approvedData },
+    { data: pendingData },
+    { data: myPostsData },
+    { data: resourcesData },
+    { data: eventsData },
+    { data: signupsData },
+    { data: adminRolesData },
+    { data: membershipCounts },
+  ] = await Promise.all([
+    supabase.from('orgs').select('city').eq('id', session.org_id).single(),
+    supabase.from('groups').select('id, name, slug, color, description').in('id', memberGroupIds),
+    supabase.from('groups').select('id, name, slug, color, description').eq('org_id', session.org_id),
+    supabase
+      .from('posts')
+      .select(postSelect)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('posts')
+      .select(postSelect)
+      .eq('author_id', session.user_id)
+      .eq('status', 'pending')
+      .order('created_at', { ascending: false }),
+    supabase
+      .from('posts')
+      .select(postSelect)
+      .eq('author_id', session.user_id)
+      .eq('status', 'approved')
+      .order('created_at', { ascending: false })
+      .limit(50),
+    supabase
+      .from('org_resources')
+      .select('url, enabled, resource:standard_resources(key, label, sort_order)')
+      .eq('org_id', session.org_id)
+      .eq('enabled', true),
+    supabase
+      .from('events')
+      .select('id, title, starts_at, location, group_id, group:groups(id, name, slug)')
+      .eq('org_id', session.org_id)
+      .gte('starts_at', new Date().toISOString())
+      .order('starts_at', { ascending: true })
+      .limit(30),
+    supabase.from('signups').select('event_id').eq('user_id', session.user_id),
+    supabase
+      .from('roles')
+      .select('user_id, group_id, user:users(name)')
+      .eq('role_type', 'group_admin')
+      .eq('org_id', session.org_id),
+    supabase.from('group_memberships').select('group_id'),
+  ]);
 
-  const { data: approvedData } = await supabase
-    .from('posts')
-    .select(postSelect)
-    .eq('status', 'approved')
-    .order('created_at', { ascending: false })
-    .limit(50);
+  const postIds = [
+    ...new Set([
+      ...(approvedData ?? []).map(p => (p as RawPost).id as string),
+      ...(pendingData ?? []).map(p => (p as RawPost).id as string),
+      ...(myPostsData ?? []).map(p => (p as RawPost).id as string),
+    ]),
+  ];
 
-  const { data: pendingData } = await supabase
-    .from('posts')
-    .select(postSelect)
-    .eq('author_id', session.user_id)
-    .eq('status', 'pending')
-    .order('created_at', { ascending: false });
+  const [{ data: reactionsData }, { data: savesData }] = await Promise.all([
+    postIds.length
+      ? supabase.from('reactions').select('post_id, kind, user_id').in('post_id', postIds)
+      : Promise.resolve({ data: [] as { post_id: string; kind: string; user_id: string }[] }),
+    supabase.from('saves').select('post_id').eq('user_id', session.user_id),
+  ]);
 
-  const { data: resourcesData } = await supabase
-    .from('org_resources')
-    .select('url, enabled, resource:standard_resources(key, label, sort_order)')
-    .eq('org_id', session.org_id)
-    .eq('enabled', true);
+  const savedIds = new Set((savesData ?? []).map(s => s.post_id as string));
+  const reactionMap = aggregateReactions(
+    (reactionsData ?? []) as { post_id: string; kind: string; user_id: string }[],
+    session.user_id,
+  );
+
+  const adminPairs = new Set<string>();
+  const adminByGroup = new Map<string, string>();
+  for (const row of adminRolesData ?? []) {
+    const userId = row.user_id as string;
+    const groupId = row.group_id as string;
+    adminPairs.add(`${userId}:${groupId}`);
+    const user = firstRelation(row.user as { name: string } | { name: string }[]);
+    if (user && !adminByGroup.has(groupId)) {
+      adminByGroup.set(groupId, user.name);
+    }
+  }
+
+  const countByGroup = new Map<string, number>();
+  for (const row of membershipCounts ?? []) {
+    const gid = row.group_id as string;
+    countByGroup.set(gid, (countByGroup.get(gid) ?? 0) + 1);
+  }
+
+  const joinedSet = new Set(memberGroupIds);
+  const groups: FeedGroup[] = ((groupsData ?? []) as FeedGroup[]).map(g => ({
+    ...g,
+    member_count: countByGroup.get(g.id) ?? 0,
+    admin_name: adminByGroup.get(g.id) ?? null,
+    joined: true,
+  }));
+
+  const allGroups: FeedGroup[] = ((allGroupsData ?? []) as FeedGroup[]).map(g => ({
+    ...g,
+    member_count: countByGroup.get(g.id) ?? 0,
+    admin_name: adminByGroup.get(g.id) ?? null,
+    joined: joinedSet.has(g.id),
+  }));
+
+  const rsvpEventIds = new Set((signupsData ?? []).map(s => s.event_id as string));
+  const events: FeedEvent[] = (eventsData ?? []).map(row => {
+    const group = firstRelation(
+      row.group as { id: string; name: string; slug: string } | { id: string; name: string; slug: string }[],
+    );
+    return {
+      id: row.id as string,
+      title: row.title as string,
+      starts_at: row.starts_at as string,
+      location: row.location as string | null,
+      group_id: row.group_id as string | null,
+      group_slug: group?.slug ?? null,
+      group_name: group?.name ?? null,
+      rsvped: rsvpEventIds.has(row.id as string),
+    };
+  });
 
   const resources: OrgResource[] = (resourcesData ?? [])
     .map(row => {
-      const resource = firstRelation(row.resource as { key: string; label: string; sort_order: number } | { key: string; label: string; sort_order: number }[]);
+      const resource = firstRelation(
+        row.resource as { key: string; label: string; sort_order: number } | { key: string; label: string; sort_order: number }[],
+      );
       if (!resource) return null;
       return { key: resource.key, label: resource.label, url: row.url as string | null };
     })
     .filter((r): r is OrgResource => r !== null);
 
+  const approvedPosts = sortPosts(
+    mapPosts(approvedData as RawPost[] | null, reactionMap, savedIds, adminPairs),
+  );
+  const pendingPosts = mapPosts(pendingData as RawPost[] | null, reactionMap, savedIds, adminPairs);
+  const myPosts = sortPosts(
+    mapPosts(myPostsData as RawPost[] | null, reactionMap, savedIds, adminPairs),
+  );
+
   return (
     <MemberPortal
       session={session}
       orgCity={(org?.city as string | null) ?? null}
-      groups={(groupsData ?? []) as FeedGroup[]}
+      groups={groups}
+      allGroups={allGroups}
       resources={filterOrgResources(resources)}
-      approvedPosts={mapPosts(approvedData as Record<string, unknown>[] | null)}
-      pendingPosts={mapPosts(pendingData as Record<string, unknown>[] | null)}
+      events={events}
+      approvedPosts={approvedPosts}
+      pendingPosts={pendingPosts}
+      myPosts={myPosts}
     />
   );
 }

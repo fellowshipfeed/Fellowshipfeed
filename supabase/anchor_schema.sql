@@ -752,16 +752,33 @@ insert into group_memberships (user_id, group_id) values
   ('33333333-3333-3333-3333-333333333015', '22222222-2222-2222-2222-222222222001');  -- Tomas → YA
 
 -- A few sample posts so feeds aren't empty
-insert into posts (author_id, group_id, org_id, body, status, is_parish_wide, approved_at, approved_by) values
+insert into posts (author_id, group_id, org_id, body, status, is_parish_wide, pinned, approved_at, approved_by) values
   ('33333333-3333-3333-3333-333333333001', null, '11111111-1111-1111-1111-111111111111',
    'Reminder: this Sunday is our annual Parish Picnic at Garden Grove Park, 12:30pm right after the 11am Mass. Food, games, and live music from the youth band.',
-   'approved', true, now(), '33333333-3333-3333-3333-333333333001'),
+   'approved', true, true, now(), '33333333-3333-3333-3333-333333333001'),
+  ('33333333-3333-3333-3333-333333333002', '22222222-2222-2222-2222-222222222001', '11111111-1111-1111-1111-111111111111',
+   'Reminder: this Friday is our monthly social at El Farolito (7pm). Bring a friend — we''ll cover the first round for first-time visitors.',
+   'approved', false, true, now(), '33333333-3333-3333-3333-333333333002'),
   ('33333333-3333-3333-3333-333333333002', '22222222-2222-2222-2222-222222222001', '11111111-1111-1111-1111-111111111111',
    'Service night at Second Harvest Food Bank — Saturday Nov 8, 9am to noon. Sign up by Wednesday.',
-   'approved', false, now(), '33333333-3333-3333-3333-333333333002'),
+   'approved', false, false, now(), '33333333-3333-3333-3333-333333333002'),
   ('33333333-3333-3333-3333-333333333010', '22222222-2222-2222-2222-222222222001', '11111111-1111-1111-1111-111111111111',
    'Anyone interested in starting a Tuesday morning prayer group before work? Thinking 6:30am at the chapel.',
-   'pending', false, null, null);
+   'pending', false, false, null, null);
+
+insert into events (id, group_id, org_id, title, description, starts_at, location, created_by) values
+  ('44444444-4444-4444-4444-444444444001', null, '11111111-1111-1111-1111-111111111111',
+   'Parish picnic at Yorba Regional', 'Annual parish picnic after 11am Mass',
+   '2026-10-19 12:30:00-07', 'Garden Grove Park', '33333333-3333-3333-3333-333333333001'),
+  ('44444444-4444-4444-4444-444444444002', '22222222-2222-2222-2222-222222222004', '11111111-1111-1111-1111-111111111111',
+   'Date night with childcare', 'Childcare provided at the parish hall',
+   '2026-10-11 18:00:00-07', 'Parish hall', '33333333-3333-3333-3333-333333333005'),
+  ('44444444-4444-4444-4444-444444444003', '22222222-2222-2222-2222-222222222001', '11111111-1111-1111-1111-111111111111',
+   'Monthly social at El Farolito', 'First round covered for first-time visitors',
+   '2026-10-17 19:00:00-07', 'El Farolito, Anaheim', '33333333-3333-3333-3333-333333333002'),
+  ('44444444-4444-4444-4444-444444444004', '22222222-2222-2222-2222-222222222002', '11111111-1111-1111-1111-111111111111',
+   'Saturday morning breakfast', 'Men''s fellowship breakfast in the parish hall',
+   '2026-10-18 07:30:00-07', 'Parish hall', '33333333-3333-3333-3333-333333333003');
 
 -- ============================================================================
 -- DONE
