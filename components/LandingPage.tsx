@@ -56,7 +56,7 @@ export function LandingPage() {
               <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
           </Link>
-          <p className="text-xs text-ink-muted mt-4">Magic-link sign-in · No password required</p>
+          <p className="text-xs text-ink-muted mt-4">Sign in with your parish email and password</p>
         </section>
 
         <section className="border-t border-line/60 bg-cream-soft">

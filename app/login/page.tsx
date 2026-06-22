@@ -1,19 +1,20 @@
 'use client';
 
 import { Suspense, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
 
 const errorMessages: Record<string, string> = {
-  auth: 'Sign-in link expired or invalid. Request a new magic link.',
+  auth: 'Sign-in failed. Check your email and password and try again.',
   'no-profile': 'Your account is not linked to a profile yet. Contact your administrator.',
 };
 
 function LoginForm() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const queryError = searchParams.get('error');
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -22,13 +23,14 @@ function LoginForm() {
     setLoading(true);
     setError('');
     const supabase = createClient();
-    const { error: signInError } = await supabase.auth.signInWithOtp({
-      email,
-      options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
-    });
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (signInError) setError(signInError.message);
-    else setSent(true);
+    if (signInError) {
+      setError(signInError.message);
+      return;
+    }
+    router.push('/');
+    router.refresh();
   }
 
   const bannerError = queryError ? errorMessages[queryError] ?? 'Something went wrong. Try again.' : '';
@@ -47,38 +49,43 @@ function LoginForm() {
         <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2 mb-4">{bannerError}</div>
       )}
 
-      {sent ? (
-        <div className="text-center py-6">
-          <div className="text-2xl mb-2">✉️</div>
-          <div className="font-display text-lg font-medium mb-1">Check your inbox</div>
-          <p className="text-sm text-ink-soft">
-            We sent a magic link to <strong>{email}</strong>. Click it to sign in.
-          </p>
+      <form onSubmit={handleLogin} className="space-y-4">
+        <div>
+          <label className="text-xs uppercase tracking-wider text-ink-muted font-semibold block mb-2">Email</label>
+          <input
+            type="email"
+            required
+            autoComplete="email"
+            value={email}
+            onChange={e => setEmail(e.target.value)}
+            placeholder="you@yourchurch.org"
+            className="w-full px-3 py-2.5 border border-line rounded-md bg-cream-soft focus:outline-none focus:border-accent focus:bg-white"
+          />
         </div>
-      ) : (
-        <form onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="text-xs uppercase tracking-wider text-ink-muted font-semibold block mb-2">Email</label>
-            <input
-              type="email"
-              required
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              placeholder="you@yourchurch.org"
-              className="w-full px-3 py-2.5 border border-line rounded-md bg-cream-soft focus:outline-none focus:border-accent focus:bg-white"
-            />
-          </div>
-          {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>}
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-accent text-white font-medium py-2.5 rounded-md hover:bg-accent-hover disabled:opacity-60"
-          >
-            {loading ? 'Sending…' : 'Send me a magic link'}
-          </button>
-          <p className="text-xs text-ink-muted text-center">No password needed. We&apos;ll email you a sign-in link.</p>
-        </form>
-      )}
+        <div>
+          <label className="text-xs uppercase tracking-wider text-ink-muted font-semibold block mb-2">Password</label>
+          <input
+            type="password"
+            required
+            autoComplete="current-password"
+            value={password}
+            onChange={e => setPassword(e.target.value)}
+            placeholder="Your password"
+            className="w-full px-3 py-2.5 border border-line rounded-md bg-cream-soft focus:outline-none focus:border-accent focus:bg-white"
+          />
+        </div>
+        {error && <div className="text-sm text-red-700 bg-red-50 border border-red-200 rounded p-2">{error}</div>}
+        <button
+          type="submit"
+          disabled={loading}
+          className="w-full bg-accent text-white font-medium py-2.5 rounded-md hover:bg-accent-hover disabled:opacity-60"
+        >
+          {loading ? 'Signing in…' : 'Sign in'}
+        </button>
+        <p className="text-xs text-ink-muted text-center">
+          Accounts are created by your parish administrator.
+        </p>
+      </form>
     </div>
   );
 }
