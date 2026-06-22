@@ -1,7 +1,8 @@
 import type { ReactNode } from 'react';
 import type { FeedGroup } from '@/lib/types';
-import { getGroupStyle } from '@/lib/group-styles';
+import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { getInitials } from '@/lib/format';
+import { GroupDot } from './GroupDot';
 
 type HeaderVariant = 'group' | 'pending' | 'yourPosts' | 'saved' | 'explore';
 
@@ -58,16 +59,22 @@ const copy: Record<HeaderVariant, { title: string; meta: string }> = {
 
 export function FeedHeader({ variant, group }: Props) {
   if (variant === 'group' && group) {
-    const style = getGroupStyle(group.slug);
+    const palette = getGroupStyleFromGroup(group);
     return (
-      <div className="bg-white border border-line rounded-xl p-5 sm:p-6 mb-4 flex gap-4 items-center">
+      <div
+        className="bg-white border border-line rounded-xl p-5 sm:p-6 mb-4 flex gap-4 items-center"
+        style={{ borderLeftWidth: 4, borderLeftColor: palette.hex }}
+      >
         <div
-          className={`w-[52px] h-[52px] rounded-[10px] flex items-center justify-center font-display text-xl font-medium shrink-0 ${style.icon}`}
+          className={`w-[52px] h-[52px] rounded-[10px] flex items-center justify-center font-display text-xl font-medium shrink-0 ${palette.icon}`}
         >
           {getInitials(group.name, 2)}
         </div>
         <div className="flex-1 min-w-0">
-          <h1 className="font-display text-[22px] font-medium tracking-tight">{group.name}</h1>
+          <h1 className="font-display text-[22px] font-medium tracking-tight flex items-center gap-2">
+            <GroupDot slug={group.slug} color={group.color} size="md" />
+            {group.name}
+          </h1>
           <p className="text-xs text-ink-muted mt-1 flex items-center gap-3">
             <span>{group.member_count ?? 0} members</span>
             {group.admin_name && (

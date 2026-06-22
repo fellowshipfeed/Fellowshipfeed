@@ -1,9 +1,10 @@
 'use client';
 
 import type { FeedGroup, FeedPost } from '@/lib/types';
-import { getGroupStyle } from '@/lib/group-styles';
+import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { formatRelativeTime } from '@/lib/format';
 import { totalReactions } from '@/lib/post-reactions';
+import { GroupDot } from './GroupDot';
 
 type Props = {
   post: FeedPost;
@@ -25,7 +26,11 @@ export function PostCard({
   onToggleSave,
 }: Props) {
   const group = groups.find(g => g.id === post.group_id);
-  const style = post.is_parish_wide ? getGroupStyle('home') : getGroupStyle(group?.slug ?? '');
+  const style = post.is_parish_wide
+    ? getGroupStyleFromGroup({ slug: 'parish', color: 'parish' })
+    : group
+      ? getGroupStyleFromGroup(group)
+      : getGroupStyleFromGroup({ slug: '', color: 'gray' });
   const groupLabel = post.is_parish_wide ? 'Parish-wide' : (group?.name ?? 'Group');
   const isPending = post.status === 'pending';
   const displayName = showYou ? 'You' : (post.author?.name ?? 'Unknown');
@@ -38,15 +43,26 @@ export function PostCard({
       className={`bg-white border rounded-xl px-5 py-[18px] mb-3 ${
         post.is_parish_wide
           ? 'border-accent shadow-[0_1px_0_0_#DDE6F0] border-l-4 border-l-accent'
-          : 'border-line'
+          : isPending
+            ? 'border-pending border-l-4 border-l-pending'
+            : 'border-line border-l-4'
       } ${
         isPending
-          ? 'border-pending bg-gradient-to-r from-pending-soft from-[0%] via-pending-soft via-[4px] to-white to-[4px]'
+          ? 'bg-gradient-to-r from-pending-soft from-[0%] via-pending-soft via-[4px] to-white to-[4px]'
           : ''
       }`}
+      style={
+        !post.is_parish_wide && !isPending
+          ? { borderLeftColor: style.hex }
+          : undefined
+      }
     >
       <div className={`text-[10px] uppercase tracking-[0.1em] font-semibold mb-2 flex items-center gap-1.5 ${style.eyebrow}`}>
-        <span className={`w-2 h-2 rounded-full ${style.dot}`} />
+        <GroupDot
+          slug={post.is_parish_wide ? 'parish' : group?.slug}
+          color={post.is_parish_wide ? 'parish' : group?.color}
+          size="xs"
+        />
         {groupLabel}
       </div>
 

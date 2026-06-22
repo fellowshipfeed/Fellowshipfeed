@@ -1,8 +1,9 @@
 'use client';
 
 import type { FeedGroup } from '@/lib/types';
-import { getGroupStyle } from '@/lib/group-styles';
+import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { getInitials } from '@/lib/format';
+import { GroupLabel } from './GroupChip';
 
 type Props = {
   groups: FeedGroup[];
@@ -14,18 +15,18 @@ export function ExploreGroups({ groups, onJoin, onOpenGroup }: Props) {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
       {groups.map(g => {
-        const style = getGroupStyle(g.slug);
+        const palette = getGroupStyleFromGroup(g);
         return (
           <div
             key={g.id}
             className="bg-white border border-line rounded-xl p-[18px] flex flex-col hover:border-ink-muted transition-colors"
           >
             <div
-              className={`w-11 h-11 rounded-[10px] flex items-center justify-center font-display text-lg font-medium mb-3 ${style.icon}`}
+              className={`w-11 h-11 rounded-[10px] flex items-center justify-center font-display text-lg font-medium mb-3 ${palette.icon}`}
             >
               {getInitials(g.name, 2)}
             </div>
-            <div className="font-display font-medium text-[17px] tracking-tight mb-1">{g.name}</div>
+            <GroupLabel group={g} className="font-display font-medium text-[17px] tracking-tight mb-1 text-ink" />
             <div className="text-xs text-ink-muted mb-2.5">
               {g.member_count ?? 0} members
             </div>

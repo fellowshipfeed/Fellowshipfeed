@@ -1,6 +1,7 @@
 import type { FeedEvent } from '@/lib/types';
 import { formatEventDay, formatEventMonth, formatEventTime } from '@/lib/format';
 import { getGroupStyle } from '@/lib/group-styles';
+import { GroupDot } from './GroupDot';
 
 type Props = {
   events: FeedEvent[];
@@ -35,7 +36,7 @@ export function UpcomingEvents({ events, showGroupTag = false }: Props) {
       <div className="flex gap-2.5 overflow-x-auto -mx-5 px-5 pb-2 scrollbar-thin">
         {events.map(event => {
           const isParish = !event.group_id;
-          const style = getGroupStyle(isParish ? 'home' : (event.group_slug ?? ''));
+          const style = getGroupStyle(isParish ? 'parish' : event.group_slug, isParish ? 'parish' : event.group_slug);
           const groupLabel = isParish ? 'Parish-wide' : (event.group_name ?? '');
 
           return (
@@ -58,8 +59,8 @@ export function UpcomingEvents({ events, showGroupTag = false }: Props) {
                   <div className="text-[11px] text-ink-muted truncate">{event.location}</div>
                 )}
                 {showGroupTag && (
-                  <div className="inline-flex items-center gap-1 text-[10px] font-medium text-ink-muted mt-1">
-                    <span className={`w-[7px] h-[7px] rounded-full ${style.dot}`} />
+                  <div className="inline-flex items-center gap-1 text-[10px] font-medium mt-1" style={{ color: style.hex }}>
+                    <GroupDot slug={isParish ? 'parish' : event.group_slug} color={isParish ? 'parish' : event.group_slug} size="xs" />
                     {groupLabel}
                   </div>
                 )}

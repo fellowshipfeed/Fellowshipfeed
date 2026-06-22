@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import type { FeedGroup } from '@/lib/types';
+import { GroupChip } from './GroupChip';
 
 type Props = {
   userInitials: string;
@@ -68,18 +69,12 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
         <div className="flex flex-wrap gap-2 pb-3 mb-3 border-b border-line-soft pl-[50px]">
           <span className="text-[11px] text-ink-muted font-medium self-center mr-1">Post to:</span>
           {groups.map(g => (
-            <button
+            <GroupChip
               key={g.id}
-              type="button"
+              group={g}
+              selected={selected.has(g.id)}
               onClick={() => toggleGroup(g.id)}
-              className={`px-2.5 py-1 rounded-full text-[11px] font-medium border transition-colors ${
-                selected.has(g.id)
-                  ? 'bg-ink text-white border-ink'
-                  : 'bg-white text-ink-soft border-line hover:border-ink-muted'
-              }`}
-            >
-              {g.name}
-            </button>
+            />
           ))}
         </div>
       )}

@@ -1,7 +1,8 @@
 'use client';
 
 import type { FeedGroup, OrgResource } from '@/lib/types';
-import { getGroupStyle } from '@/lib/group-styles';
+import { getGroupStyleFromGroup } from '@/lib/group-styles';
+import { GroupDot } from './GroupDot';
 
 export type FeedView = 'home' | 'group' | 'pending' | 'yourPosts' | 'saved' | 'explore';
 
@@ -71,7 +72,7 @@ export function MemberSidebar({
           My Feed
         </button>
         {groups.map(g => {
-          const style = getGroupStyle(g.slug);
+          const palette = getGroupStyleFromGroup(g);
           const active = activeView === 'group' && activeGroupId === g.id;
           return (
             <button
@@ -79,12 +80,19 @@ export function MemberSidebar({
               type="button"
               onClick={() => onViewChange('group', g.id)}
               className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] border-l-[3px] transition-colors ${
-                active
-                  ? 'bg-accent-soft text-accent border-accent font-medium'
-                  : 'text-ink-soft border-transparent hover:bg-cream-soft hover:text-ink'
+                active ? 'font-medium' : 'text-ink-soft border-transparent hover:bg-cream-soft hover:text-ink'
               }`}
+              style={
+                active
+                  ? {
+                      backgroundColor: palette.soft,
+                      color: palette.hex,
+                      borderLeftColor: palette.hex,
+                    }
+                  : undefined
+              }
             >
-              <span className={`w-2 h-2 rounded-full shrink-0 ${style.dot}`} />
+              <GroupDot slug={g.slug} color={g.color} size="md" />
               {g.name}
             </button>
           );
