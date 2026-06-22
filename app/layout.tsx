@@ -18,7 +18,7 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: 'FellowshipFeed',
-  description: 'The operating system for faith communities',
+  description: 'The operating system for your faith community',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

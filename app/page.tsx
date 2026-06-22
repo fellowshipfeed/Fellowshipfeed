@@ -1,5 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
+import { LandingPage } from '@/components/LandingPage';
+import { getRolePath } from '@/lib/role-redirect';
+import type { Session } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,26 +12,16 @@ export default async function HomePage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect('/login');
-  }
+  if (user) {
+    const { data: sessionData } = await supabase.from('my_session').select('*').single();
+    const session = sessionData as Session | null;
 
-  const { data: session } = await supabase.from('my_session').select('*').single();
+    if (session) {
+      redirect(getRolePath(session.primary_role));
+    }
 
-  if (!session) {
     redirect('/login?error=no-profile');
   }
 
-  switch (session.primary_role) {
-    case 'owner':
-      redirect('/console');
-    case 'head':
-      redirect('/head');
-    case 'group_admin':
-      redirect('/admin');
-    case 'member':
-      redirect('/feed');
-    default:
-      redirect('/feed');
-  }
+  return <LandingPage />;
 }
