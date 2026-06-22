@@ -1,6 +1,7 @@
 'use client';
 import { createClient } from '@/lib/supabase-browser';
 import { useRouter } from 'next/navigation';
+import { getInitials } from '@/lib/format';
 
 type Props = {
   orgName: string;
@@ -27,7 +28,7 @@ export function TopBar({ orgName, city, userName, userInitials, rolePill }: Prop
     <div className="bg-white border-b border-line px-7 py-3.5 flex items-center justify-between sticky top-0 z-10">
       <div className="flex items-center gap-2.5">
         <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-accent-hover text-white flex items-center justify-center font-display font-semibold text-sm">
-          {orgName.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}
+          {getInitials(orgName)}
         </div>
         <div className="leading-tight">
           <div className="font-display font-medium text-[15px] tracking-tight">{orgName}</div>
