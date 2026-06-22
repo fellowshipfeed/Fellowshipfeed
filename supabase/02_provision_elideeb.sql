@@ -19,5 +19,11 @@ from auth.users au
 where u.id = '00000000-0000-0000-0000-000000000001'
   and au.email = 'elideeb@gmail.com';
 
-select email, name, auth_user_id is not null as linked, primary_role
-from public.my_session;
+select
+  u.email,
+  u.name,
+  u.auth_user_id is not null as linked,
+  r.role_type
+from public.users u
+left join public.roles r on r.user_id = u.id and r.role_type = 'owner'
+where u.email = 'elideeb@gmail.com';
