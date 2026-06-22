@@ -7,14 +7,14 @@ export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
   const supabase = await createClient();
-  const { data: session } = await supabase.from('my_session').select('*').single();
+  const sessionRes = await supabase.from('my_session').select('*').single();
+  const session: any = sessionRes.data;
   if (!session) redirect('/login');
   if (session.primary_role !== 'group_admin' && session.primary_role !== 'head' && session.primary_role !== 'owner') {
     redirect('/feed');
   }
 
-  // Pending posts in groups this admin can moderate
-  const { data: pending } = await supabase
+  const pendingRes = await supabase
     .from('posts')
     .select(`
       id, body, group_id, created_at,
@@ -23,6 +23,8 @@ export default async function AdminPage() {
     `)
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
+
+  const pending: any[] = pendingRes.data || [];
 
   return (
     <div>
@@ -40,14 +42,14 @@ export default async function AdminPage() {
           <div>
             <h1 className="font-display text-2xl font-medium tracking-tight">Pending approvals</h1>
             <div className="text-xs text-ink-muted">
-              {pending && pending.length > 0
+              {pending.length > 0
                 ? `${pending.length} post${pending.length === 1 ? '' : 's'} waiting for your review`
                 : "You're all caught up"}
             </div>
           </div>
         </div>
 
-        <ApprovalQueue initialPending={pending || []} currentUserId={session.user_id} />
+        <ApprovalQueue initialPending={pending} currentUserId={session.user_id} />
       </div>
     </div>
   );
