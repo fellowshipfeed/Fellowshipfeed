@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { TopBar } from '@/components/TopBar';
 import type { GroupAdmin, Session } from '@/lib/types';
+import { firstRelation } from '@/lib/supabase-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,12 @@ export default async function HeadPage() {
     .eq('role_type', 'group_admin')
     .eq('org_id', session.org_id);
 
-  const admins = (adminsData ?? []) as GroupAdmin[];
+  const admins: GroupAdmin[] = (adminsData ?? []).map(row => ({
+    user_id: row.user_id,
+    group_id: row.group_id,
+    granted_at: row.granted_at,
+    user: firstRelation(row.user),
+  }));
 
   return (
     <div>

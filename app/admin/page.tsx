@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase-server';
 import { TopBar } from '@/components/TopBar';
 import { ApprovalQueue } from './ApprovalQueue';
 import type { PendingPost, Session } from '@/lib/types';
+import { firstRelation } from '@/lib/supabase-helpers';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,7 +27,14 @@ export default async function AdminPage() {
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
 
-  const pending = (pendingData ?? []) as PendingPost[];
+  const pending: PendingPost[] = (pendingData ?? []).map(row => ({
+    id: row.id,
+    body: row.body,
+    group_id: row.group_id,
+    created_at: row.created_at,
+    author: firstRelation(row.author),
+    group: firstRelation(row.group),
+  }));
 
   return (
     <div>
