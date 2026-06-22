@@ -2,19 +2,21 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { TopBar } from '@/components/TopBar';
 import { ApprovalQueue } from './ApprovalQueue';
+import type { PendingPost, Session } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
   const supabase = await createClient();
-  const sessionRes = await supabase.from('my_session').select('*').single();
-  const session: any = sessionRes.data;
+  const { data: sessionData } = await supabase.from('my_session').select('*').single();
+  const session = sessionData as Session | null;
+
   if (!session) redirect('/login');
   if (session.primary_role !== 'group_admin' && session.primary_role !== 'head' && session.primary_role !== 'owner') {
     redirect('/feed');
   }
 
-  const pendingRes = await supabase
+  const { data: pendingData } = await supabase
     .from('posts')
     .select(`
       id, body, group_id, created_at,
@@ -24,7 +26,7 @@ export default async function AdminPage() {
     .eq('status', 'pending')
     .order('created_at', { ascending: true });
 
-  const pending: any[] = pendingRes.data || [];
+  const pending = (pendingData ?? []) as PendingPost[];
 
   return (
     <div>

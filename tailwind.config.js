@@ -34,8 +34,8 @@ module.exports = {
         'group-seniors-soft': '#E4DFD9',
       },
       fontFamily: {
-        display: ['Fraunces', 'Georgia', 'serif'],
-        sans: ['Inter', '-apple-system', 'system-ui', 'sans-serif'],
+        display: ['var(--font-display)', 'Georgia', 'serif'],
+        sans: ['var(--font-sans)', '-apple-system', 'system-ui', 'sans-serif'],
       },
     },
   },

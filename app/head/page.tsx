@@ -1,12 +1,15 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { TopBar } from '@/components/TopBar';
+import type { GroupAdmin, Session } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function HeadPage() {
   const supabase = await createClient();
-  const { data: session } = await supabase.from('my_session').select('*').single();
+  const { data: sessionData } = await supabase.from('my_session').select('*').single();
+  const session = sessionData as Session | null;
+
   if (!session) redirect('/login');
   if (session.primary_role !== 'head' && session.primary_role !== 'owner') {
     redirect('/feed');
@@ -17,11 +20,13 @@ export default async function HeadPage() {
     .select('id, name, slug')
     .eq('org_id', session.org_id);
 
-  const { data: admins } = await supabase
+  const { data: adminsData } = await supabase
     .from('roles')
     .select('user_id, group_id, granted_at, user:users!roles_user_id_fkey(name, initials, email)')
     .eq('role_type', 'group_admin')
     .eq('org_id', session.org_id);
+
+  const admins = (adminsData ?? []) as GroupAdmin[];
 
   return (
     <div>
@@ -44,7 +49,7 @@ export default async function HeadPage() {
 
         <div className="space-y-3">
           {groups?.map(g => {
-            const groupAdmins = admins?.filter(a => a.group_id === g.id) || [];
+            const groupAdmins = admins.filter(a => a.group_id === g.id);
             return (
               <div key={g.id} className="bg-white border border-line rounded-xl overflow-hidden">
                 <div className="px-5 py-4 border-b border-line-soft">
@@ -52,9 +57,9 @@ export default async function HeadPage() {
                   <div className="text-xs text-ink-muted">{groupAdmins.length} admin{groupAdmins.length === 1 ? '' : 's'}</div>
                 </div>
                 {groupAdmins.length === 0 ? (
-                  <div className="px-5 py-3 text-sm text-ink-muted bg-cream-soft">No admin assigned · you're moderating this group directly</div>
+                  <div className="px-5 py-3 text-sm text-ink-muted bg-cream-soft">No admin assigned · you&apos;re moderating this group directly</div>
                 ) : (
-                  groupAdmins.map((a: any) => (
+                  groupAdmins.map(a => (
                     <div key={a.user_id} className="px-5 py-3 flex items-center gap-3 bg-cream-soft border-b border-line-soft last:border-b-0">
                       <div className="w-8 h-8 rounded-full bg-accent-soft text-accent font-semibold text-xs flex items-center justify-center">{a.user?.initials}</div>
                       <div className="flex-1">

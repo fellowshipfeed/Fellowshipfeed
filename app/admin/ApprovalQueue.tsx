@@ -1,17 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase-browser';
-
-type Pending = {
-  id: string; body: string; group_id: string | null; created_at: string;
-  author: { id: string; name: string; initials: string };
-  group: { id: string; name: string } | null;
-};
+import type { PendingPost } from '@/lib/types';
 
 export function ApprovalQueue({ initialPending, currentUserId }: {
-  initialPending: Pending[]; currentUserId: string;
+  initialPending: PendingPost[]; currentUserId: string;
 }) {
-  const [pending, setPending] = useState<Pending[]>(initialPending);
+  const [pending, setPending] = useState<PendingPost[]>(initialPending);
   const [message, setMessage] = useState('');
 
   async function approve(id: string) {
@@ -60,9 +55,9 @@ export function ApprovalQueue({ initialPending, currentUserId }: {
               {p.group?.name || 'Parish-wide'}
             </div>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-full bg-accent-soft text-accent font-semibold text-xs flex items-center justify-center">{p.author.initials}</div>
+              <div className="w-9 h-9 rounded-full bg-accent-soft text-accent font-semibold text-xs flex items-center justify-center">{p.author?.initials}</div>
               <div>
-                <div className="font-medium text-sm">{p.author.name}</div>
+                <div className="font-medium text-sm">{p.author?.name}</div>
                 <div className="text-[11px] text-ink-muted">Submitted {time}</div>
               </div>
             </div>

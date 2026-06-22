@@ -1,11 +1,13 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
+import type { Session } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function ConsolePage() {
   const supabase = await createClient();
-  const { data: session } = await supabase.from('my_session').select('*').single();
+  const { data: sessionData } = await supabase.from('my_session').select('*').single();
+  const session = sessionData as Session | null;
   if (!session || session.primary_role !== 'owner') redirect('/feed');
 
   const { data: orgs } = await supabase.from('orgs').select('id, name, slug, city, plan, created_at').order('created_at', { ascending: false });
@@ -15,9 +17,9 @@ export default async function ConsolePage() {
     <div className="bg-[#0F1419] text-[#E8EBED] min-h-screen">
       <div className="border-b border-[#2A343D] px-7 py-3.5 flex items-center justify-between">
         <div className="flex items-center gap-2.5">
-          <div className="w-9 h-9 rounded-lg bg-[#6B9FE3] text-[#0F1419] flex items-center justify-center font-display font-bold">A</div>
+          <div className="w-9 h-9 rounded-lg bg-[#6B9FE3] text-[#0F1419] flex items-center justify-center font-display font-bold">F</div>
           <div>
-            <div className="font-display font-medium">Anchor</div>
+            <div className="font-display font-medium">FellowshipFeed</div>
             <div className="text-[10px] text-[#A0A8AE] uppercase tracking-wider font-mono">owner</div>
           </div>
         </div>

@@ -2,12 +2,14 @@ import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { TopBar } from '@/components/TopBar';
 import { ComposerAndFeed } from './ComposerAndFeed';
+import type { Session } from '@/lib/types';
 
 export const dynamic = 'force-dynamic';
 
 export default async function FeedPage() {
   const supabase = await createClient();
-  const { data: session } = await supabase.from('my_session').select('*').single();
+  const { data: sessionData } = await supabase.from('my_session').select('*').single();
+  const session = sessionData as Session | null;
   if (!session) redirect('/login');
 
   // Groups the user is in

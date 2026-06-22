@@ -1,9 +1,13 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 
+export const dynamic = 'force-dynamic';
+
 export default async function HomePage() {
   const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
 
   if (!user) {
     redirect('/login');
@@ -16,10 +20,15 @@ export default async function HomePage() {
   }
 
   switch (session.primary_role) {
-    case 'owner': redirect('/console');
-    case 'head': redirect('/head');
-    case 'group_admin': redirect('/admin');
-    case 'member': redirect('/feed');
-    default: redirect('/feed');
+    case 'owner':
+      redirect('/console');
+    case 'head':
+      redirect('/head');
+    case 'group_admin':
+      redirect('/admin');
+    case 'member':
+      redirect('/feed');
+    default:
+      redirect('/feed');
   }
 }
