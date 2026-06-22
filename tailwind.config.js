@@ -1,0 +1,43 @@
+/** @type {import('tailwindcss').Config} */
+module.exports = {
+  content: [
+    './app/**/*.{js,ts,jsx,tsx}',
+    './components/**/*.{js,ts,jsx,tsx}',
+  ],
+  theme: {
+    extend: {
+      colors: {
+        cream: '#F5F1E8',
+        'cream-card': '#FFFFFF',
+        'cream-soft': '#FBF8F0',
+        ink: '#1A1F22',
+        'ink-soft': '#5A6469',
+        'ink-muted': '#8C9499',
+        accent: '#27476B',
+        'accent-soft': '#DDE6F0',
+        'accent-hover': '#1E3854',
+        line: '#E5DFD2',
+        'line-soft': '#EFEAE0',
+        head: '#6B4E9A',
+        'head-soft': '#EAE3F5',
+        'group-ya': '#1E7A8C',
+        'group-ya-soft': '#D7EBF0',
+        'group-men': '#3F5F7A',
+        'group-men-soft': '#DCE3EA',
+        'group-married': '#B8741A',
+        'group-married-soft': '#F4E6D0',
+        'group-women': '#A03967',
+        'group-women-soft': '#F1D9E5',
+        'group-teen': '#6B4E9A',
+        'group-teen-soft': '#EAE3F5',
+        'group-seniors': '#5C5048',
+        'group-seniors-soft': '#E4DFD9',
+      },
+      fontFamily: {
+        display: ['Fraunces', 'Georgia', 'serif'],
+        sans: ['Inter', '-apple-system', 'system-ui', 'sans-serif'],
+      },
+    },
+  },
+  plugins: [],
+};
