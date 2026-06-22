@@ -25,3 +25,21 @@ export type GroupAdmin = {
   granted_at: string;
   user: { name: string; initials: string; email: string } | null;
 };
+
+export type FeedGroup = {
+  id: string;
+  name: string;
+  slug: string;
+  color: string;
+};
+
+export type FeedPost = {
+  id: string;
+  body: string;
+  group_id: string | null;
+  is_parish_wide: boolean;
+  status: string;
+  created_at: string;
+  author: { id: string; name: string; initials: string } | null;
+  attachments: { id: string; type: string; url: string; metadata: Record<string, unknown> | null }[];
+};

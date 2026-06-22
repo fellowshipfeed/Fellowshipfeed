@@ -1,19 +1,12 @@
 'use client';
 import { useState } from 'react';
 import { createClient } from '@/lib/supabase-browser';
-
-type Group = { id: string; name: string; slug: string; color: string };
-type Post = {
-  id: string; body: string; group_id: string | null; is_parish_wide: boolean;
-  status: string; created_at: string;
-  author: { id: string; name: string; initials: string };
-  attachments: { id: string; type: string; url: string; metadata: any }[];
-};
+import type { FeedGroup, FeedPost } from '@/lib/types';
 
 export function ComposerAndFeed({ groups, initialPosts, currentUserId, orgId }: {
-  groups: Group[]; initialPosts: Post[]; currentUserId: string; orgId: string;
+  groups: FeedGroup[]; initialPosts: FeedPost[]; currentUserId: string; orgId: string;
 }) {
-  const [posts, setPosts] = useState<Post[]>(initialPosts);
+  const [posts, setPosts] = useState<FeedPost[]>(initialPosts);
   const [body, setBody] = useState('');
   const [selectedGroup, setSelectedGroup] = useState<string>(groups[0]?.id || '');
   const [submitting, setSubmitting] = useState(false);
@@ -92,9 +85,9 @@ export function ComposerAndFeed({ groups, initialPosts, currentUserId, orgId }: 
               {groupName}
             </div>
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-9 h-9 rounded-full bg-accent-soft text-accent font-semibold text-xs flex items-center justify-center">{p.author.initials}</div>
+              <div className="w-9 h-9 rounded-full bg-accent-soft text-accent font-semibold text-xs flex items-center justify-center">{p.author?.initials}</div>
               <div>
-                <div className="font-medium text-sm">{p.author.name}</div>
+                <div className="font-medium text-sm">{p.author?.name ?? 'Unknown'}</div>
                 <div className="text-[11px] text-ink-muted">{time}</div>
               </div>
             </div>
