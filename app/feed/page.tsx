@@ -1,9 +1,9 @@
 import { redirect } from 'next/navigation';
-import Link from 'next/link';
 import { createClient } from '@/lib/supabase-server';
 import { MemberPortal } from '@/components/member/MemberPortal';
 import type { FeedGroup, FeedPost, OrgResource, Session } from '@/lib/types';
 import { firstRelation } from '@/lib/supabase-helpers';
+import { filterOrgResources } from '@/lib/org-resources';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,7 +73,7 @@ export default async function FeedPage() {
       session={session}
       orgCity={(org?.city as string | null) ?? null}
       groups={(groupsData ?? []) as FeedGroup[]}
-      resources={resources}
+      resources={filterOrgResources(resources)}
       approvedPosts={mapPosts(approvedData as Record<string, unknown>[] | null)}
       pendingPosts={mapPosts(pendingData as Record<string, unknown>[] | null)}
     />

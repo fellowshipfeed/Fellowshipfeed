@@ -5,16 +5,23 @@ function formatTime(iso: string) {
   return new Date(iso).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-export function PostCard({ post, groups }: { post: FeedPost; groups: FeedGroup[] }) {
+type Props = {
+  post: FeedPost;
+  groups: FeedGroup[];
+  onCancel?: (postId: string) => void;
+};
+
+export function PostCard({ post, groups, onCancel }: Props) {
   const group = groups.find(g => g.id === post.group_id);
   const style = post.is_parish_wide ? getGroupStyle('home') : getGroupStyle(group?.slug ?? '');
   const groupLabel = post.is_parish_wide ? 'Parish-wide' : group?.name ?? 'Group';
+  const isPending = post.status === 'pending';
 
   return (
     <article
       className={`bg-white border border-line rounded-xl p-5 mb-3 ${
         post.is_parish_wide ? 'border-accent shadow-[0_1px_0_0_#DDE6F0]' : ''
-      } ${post.status === 'pending' ? 'border-pending bg-gradient-to-r from-pending-soft from-[0%] via-pending-soft via-[4px] to-white to-[4%]' : ''}`}
+      } ${isPending ? 'border-pending bg-gradient-to-r from-pending-soft from-[0%] via-pending-soft via-[4px] to-white to-[4%]' : ''}`}
     >
       <div className={`text-[10px] uppercase tracking-wider font-semibold mb-2 flex items-center gap-1.5 ${style.eyebrow}`}>
         <span className={`w-2 h-2 rounded-full ${style.dot}`} />
@@ -31,7 +38,7 @@ export function PostCard({ post, groups }: { post: FeedPost; groups: FeedGroup[]
         <div>
           <div className="font-medium text-sm flex items-center gap-2 flex-wrap">
             {post.author?.name ?? 'Unknown'}
-            {post.status === 'pending' && (
+            {isPending && (
               <span className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded-full bg-pending-soft text-pending">
                 Pending
               </span>
@@ -41,11 +48,22 @@ export function PostCard({ post, groups }: { post: FeedPost; groups: FeedGroup[]
         </div>
       </div>
       <p className="text-sm leading-relaxed whitespace-pre-wrap text-ink mb-3">{post.body}</p>
-      {post.status === 'approved' && (
+      {isPending && onCancel ? (
+        <div className="flex items-center gap-2 pt-3 border-t border-line-soft">
+          <span className="text-xs text-ink-soft flex-1">Waiting for admin review</span>
+          <button
+            type="button"
+            onClick={() => onCancel(post.id)}
+            className="text-xs font-medium text-red-700 hover:bg-red-50 px-3 py-1.5 rounded-md border border-transparent hover:border-red-200"
+          >
+            Cancel post
+          </button>
+        </div>
+      ) : post.status === 'approved' ? (
         <div className="flex gap-5 pt-3 border-t border-line-soft text-xs text-ink-soft">
           <button type="button" className="flex items-center gap-1.5 hover:text-ink" disabled>
             <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path d="M4 8c0-2.5 2-4.5 4-4.5s4 2 4 4.5c0 2.5-4 6.5-4 6.5S4 10.5 4 8z" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M4 8c0-2.5 2-4.5 4-4.5s4 2 4.5c0 2.5-4 6.5-4 6.5S4 10.5 4 8z" stroke="currentColor" strokeWidth="1.4" />
             </svg>
             Like
           </button>
@@ -56,7 +74,7 @@ export function PostCard({ post, groups }: { post: FeedPost; groups: FeedGroup[]
             Save
           </button>
         </div>
-      )}
+      ) : null}
     </article>
   );
 }

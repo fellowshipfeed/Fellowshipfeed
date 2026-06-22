@@ -672,7 +672,7 @@ select '11111111-1111-1111-1111-111111111111', id,
     when 'contact'         then 'mailto:office@stlukegg.org'
     else null
   end,
-  case key when 'prayer_requests' then false else true end
+  case key when 'prayer_requests' then false when 'livestream' then false when 'bulletin' then false when 'contact' then false else true end
 from standard_resources;
 
 -- Groups
@@ -740,6 +740,7 @@ insert into group_memberships (user_id, group_id) values
   ('33333333-3333-3333-3333-333333333005', '22222222-2222-2222-2222-222222222003'),
   -- Members in various groups
   ('33333333-3333-3333-3333-333333333010', '22222222-2222-2222-2222-222222222001'),  -- Isabel → YA
+  ('33333333-3333-3333-3333-333333333010', '22222222-2222-2222-2222-222222222004'),  -- Isabel → Women
   ('33333333-3333-3333-3333-333333333011', '22222222-2222-2222-2222-222222222001'),  -- Anthony → YA
   ('33333333-3333-3333-3333-333333333011', '22222222-2222-2222-2222-222222222002'),  -- Anthony → Men
   ('33333333-3333-3333-3333-333333333012', '22222222-2222-2222-2222-222222222001'),  -- David → YA

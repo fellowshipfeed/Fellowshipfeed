@@ -29,6 +29,7 @@ export function MemberPortal({
 }: Props) {
   const [view, setView] = useState<FeedView>('home');
   const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const [pending, setPending] = useState(pendingPosts);
   const [body, setBody] = useState('');
   const [selectedGroup, setSelectedGroup] = useState(groups[0]?.id ?? '');
   const [submitting, setSubmitting] = useState(false);
@@ -38,16 +39,27 @@ export function MemberPortal({
   const headerStyle = activeGroup ? getGroupStyle(activeGroup.slug) : getGroupStyle('home');
 
   const visiblePosts = useMemo(() => {
-    if (view === 'pending') return pendingPosts;
+    if (view === 'pending') return pending;
     if (view === 'group' && activeGroupId) {
       return approvedPosts.filter(p => p.group_id === activeGroupId && !p.is_parish_wide);
     }
     return approvedPosts;
-  }, [view, activeGroupId, approvedPosts, pendingPosts]);
+  }, [view, activeGroupId, approvedPosts, pending]);
 
   function handleViewChange(next: FeedView, groupId?: string | null) {
     setView(next);
     setActiveGroupId(groupId ?? null);
+  }
+
+  async function cancelPendingPost(postId: string) {
+    if (!window.confirm('Cancel this post? It will be removed from the review queue.')) return;
+    const supabase = createClient();
+    const { error } = await supabase.from('posts').delete().eq('id', postId).eq('status', 'pending');
+    if (error) {
+      setMessage(error.message);
+      return;
+    }
+    setPending(prev => prev.filter(p => p.id !== postId));
   }
 
   async function submitPost() {
@@ -70,6 +82,7 @@ export function MemberPortal({
       setBody('');
       setMessage('Submitted for review — your group admin will see it shortly.');
       setTimeout(() => setMessage(''), 4000);
+      window.location.reload();
     }
   }
 
@@ -103,41 +116,39 @@ export function MemberPortal({
           resources={resources}
           activeView={view}
           activeGroupId={activeGroupId}
-          pendingCount={pendingPosts.length}
+          pendingCount={pending.length}
           onViewChange={handleViewChange}
         />
 
         <main className="min-w-0">
           <div className="bg-white border border-line rounded-xl p-5 sm:p-6 mb-4 flex gap-4 items-center">
-            <div className={`w-[52px] h-[52px] rounded-[10px] flex items-center justify-center font-display text-xl font-medium shrink-0 ${headerStyle.icon}`}>
-              {view === 'pending' ? (
-                <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.6" />
-                  <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-                </svg>
-              ) : view === 'group' && activeGroup ? (
-                getInitials(activeGroup.name, 2)
-              ) : (
-                <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-                  <path d="M2 8l6-5 6 5v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-                </svg>
-              )}
-            </div>
+            {(view === 'pending' || (view === 'group' && activeGroup)) && (
+              <div className={`w-[52px] h-[52px] rounded-[10px] flex items-center justify-center font-display text-xl font-medium shrink-0 ${headerStyle.icon}`}>
+                {view === 'pending' ? (
+                  <svg width="22" height="22" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+                    <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.6" />
+                    <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+                  </svg>
+                ) : (
+                  getInitials(activeGroup!.name, 2)
+                )}
+              </div>
+            )}
             <div className="flex-1 min-w-0">
               <h1 className="font-display text-2xl font-medium tracking-tight">{title}</h1>
               <p className="text-xs text-ink-muted mt-1">{meta}</p>
             </div>
           </div>
 
-          {pendingPosts.length > 0 && view !== 'pending' && (
+          {pending.length > 0 && view !== 'pending' && (
             <div className="bg-pending-soft border border-pending rounded-xl px-4 py-3 mb-4 flex items-center gap-3 text-sm">
               <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="text-pending shrink-0" aria-hidden="true">
                 <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
                 <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
               </svg>
               <span className="flex-1">
-                You have <strong className="text-pending font-semibold">{pendingPosts.length}</strong> post
-                {pendingPosts.length === 1 ? '' : 's'} awaiting admin review.
+                You have <strong className="text-pending font-semibold">{pending.length}</strong> post
+                {pending.length === 1 ? '' : 's'} awaiting admin review.
               </span>
               <button type="button" onClick={() => handleViewChange('pending')} className="text-pending text-xs font-medium underline">
                 See pending
@@ -209,7 +220,14 @@ export function MemberPortal({
               </p>
             </div>
           ) : (
-            visiblePosts.map(p => <PostCard key={p.id} post={p} groups={groups} />)
+            visiblePosts.map(p => (
+              <PostCard
+                key={p.id}
+                post={p}
+                groups={groups}
+                onCancel={view === 'pending' ? cancelPendingPost : undefined}
+              />
+            ))
           )}
         </main>
       </div>
