@@ -27,10 +27,20 @@ type Props = {
   pendingPosts: FeedPost[];
   myPosts: FeedPost[];
   headUserId: string | null;
+  initialGroupId?: string | null;
 };
 
 function patchPost(posts: FeedPost[], postId: string, patch: Partial<FeedPost>): FeedPost[] {
   return posts.map(p => (p.id === postId ? { ...p, ...patch } : p));
+}
+
+function resolveGroup(
+  groupId: string | null | undefined,
+  memberGroups: FeedGroup[],
+  all: FeedGroup[],
+): FeedGroup | null {
+  if (!groupId) return null;
+  return memberGroups.find(g => g.id === groupId) ?? all.find(g => g.id === groupId) ?? null;
 }
 
 export function MemberPortal({
@@ -45,10 +55,12 @@ export function MemberPortal({
   pendingPosts: initialPending,
   myPosts: initialMyPosts,
   headUserId,
+  initialGroupId,
 }: Props) {
   const router = useRouter();
-  const [view, setView] = useState<FeedView>('home');
-  const [activeGroupId, setActiveGroupId] = useState<string | null>(null);
+  const bootGroup = resolveGroup(initialGroupId, initialGroups, initialAllGroups);
+  const [view, setView] = useState<FeedView>(bootGroup ? 'group' : 'home');
+  const [activeGroupId, setActiveGroupId] = useState<string | null>(bootGroup?.id ?? null);
   const [groups, setGroups] = useState(initialGroups);
   const [allGroups, setAllGroups] = useState(initialAllGroups);
   const [approvedPosts, setApprovedPosts] = useState(initialApproved);
@@ -56,8 +68,32 @@ export function MemberPortal({
   const [myPosts, setMyPosts] = useState(initialMyPosts);
   const [askAdminGroup, setAskAdminGroup] = useState<FeedGroup | null>(null);
 
-  const activeGroup = groups.find(g => g.id === activeGroupId) ?? null;
+  const activeGroup = useMemo(
+    () => resolveGroup(activeGroupId, groups, allGroups),
+    [activeGroupId, groups, allGroups],
+  );
   const memberGroupIds = useMemo(() => new Set(groups.map(g => g.id)), [groups]);
+  const isHeadOrOwner = session.primary_role === 'head' || session.primary_role === 'owner';
+  const adminGroupIds = useMemo(() => new Set(session.admin_group_ids ?? []), [session.admin_group_ids]);
+
+  const sidebarGroups = useMemo(() => {
+    const map = new Map(groups.map(g => [g.id, { ...g, joined: true as const }]));
+    if (isHeadOrOwner) {
+      for (const g of allGroups) {
+        if (!map.has(g.id)) map.set(g.id, { ...g, joined: false });
+      }
+    } else if (session.primary_role === 'group_admin') {
+      for (const g of allGroups) {
+        if (adminGroupIds.has(g.id) && !map.has(g.id)) {
+          map.set(g.id, { ...g, joined: false });
+        }
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
+  }, [groups, allGroups, isHeadOrOwner, adminGroupIds, session.primary_role]);
+
+  const canModerateActiveGroup =
+    isHeadOrOwner || (activeGroupId != null && adminGroupIds.has(activeGroupId));
 
   const savedPosts = useMemo(() => approvedPosts.filter(p => p.saved), [approvedPosts]);
   const savedCount = savedPosts.length;
@@ -87,7 +123,9 @@ export function MemberPortal({
     return [];
   }, [view, activeGroupId, approvedPosts, pending, myPosts, savedPosts]);
 
-  const showComposer = view === 'home' || view === 'group';
+  const showComposer =
+    (view === 'home' || view === 'group') &&
+    (view === 'home' || !activeGroupId || memberGroupIds.has(activeGroupId));
   const showEvents =
     (view === 'home' || view === 'group') &&
     (visibleEvents.length > 0 || Boolean(calendar.google_calendar_url || calendar.calendar_ics_url));
@@ -95,6 +133,11 @@ export function MemberPortal({
   function handleViewChange(next: FeedView, groupId?: string | null) {
     setView(next);
     setActiveGroupId(groupId ?? null);
+    if (next === 'group' && groupId) {
+      router.replace(`/feed?group=${groupId}`, { scroll: false });
+    } else {
+      router.replace('/feed', { scroll: false });
+    }
   }
 
   const updatePostEverywhere = useCallback((postId: string, patch: Partial<FeedPost>) => {
@@ -288,12 +331,16 @@ export function MemberPortal({
         orgCity={orgCity}
         userName={session.name}
         userInitials={session.initials}
-        showAdminLink={session.primary_role === 'group_admin' || session.primary_role === 'head'}
+        showAdminLink={
+          session.primary_role === 'group_admin' ||
+          session.primary_role === 'head' ||
+          session.primary_role === 'owner'
+        }
       />
 
       <div className="max-w-[1180px] mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
         <MemberSidebar
-          groups={groups}
+          groups={sidebarGroups}
           resources={resources}
           activeView={view}
           activeGroupId={activeGroupId}
@@ -310,12 +357,29 @@ export function MemberPortal({
             </>
           ) : (
             <>
+              {view === 'group' && canModerateActiveGroup && activeGroup?.joined === false && (
+                <div className="bg-accent-soft border border-accent/20 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 text-[13px] text-accent">
+                  <span>Viewing this group as admin</span>
+                  <button
+                    type="button"
+                    onClick={() => router.push('/admin')}
+                    className="text-xs font-medium underline shrink-0"
+                  >
+                    Back to admin
+                  </button>
+                </div>
+              )}
+
               {view === 'group' && activeGroup && (
                 <FeedHeader
                   variant="group"
                   group={activeGroup}
-                  onLeaveGroup={() => leaveGroup(activeGroup.id)}
-                  onAskAdmin={() => setAskAdminGroup(activeGroup)}
+                  onLeaveGroup={
+                    activeGroup.joined !== false ? () => leaveGroup(activeGroup.id) : undefined
+                  }
+                  onAskAdmin={
+                    canModerateActiveGroup ? undefined : () => setAskAdminGroup(activeGroup)
+                  }
                 />
               )}
               {view === 'pending' && <FeedHeader variant="pending" />}
@@ -366,7 +430,7 @@ export function MemberPortal({
                   <PostCard
                     key={p.id}
                     post={p}
-                    groups={groups}
+                    groups={sidebarGroups}
                     orgName={session.org_name}
                     showYou={view === 'pending' || view === 'yourPosts'}
                     onCancel={view === 'pending' ? cancelPendingPost : undefined}

@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import type { AdminView, FeedGroup, OrgResource } from '@/lib/types';
 import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { GroupDot } from '@/components/member/GroupDot';
@@ -58,22 +59,37 @@ export function AdminSidebar({
           <div className="text-[10px] uppercase tracking-[0.09em] text-ink-muted font-semibold px-4 pt-3.5 pb-2">
             Groups you manage
           </div>
+          <Link
+            href="/feed"
+            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors"
+          >
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+              <path
+                d="M2 8l6-5 6 5v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8z"
+                stroke="currentColor"
+                strokeWidth="1.4"
+                strokeLinejoin="round"
+              />
+            </svg>
+            My Feed
+          </Link>
           {groups.map(g => {
             const palette = getGroupStyleFromGroup(g);
             return (
-              <div
+              <Link
                 key={g.id}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent"
+                href={`/feed?group=${g.id}`}
+                className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors group"
               >
                 <GroupDot slug={g.slug} color={g.color} size="md" />
                 <span className="flex-1 text-left truncate">{g.name}</span>
                 <span
-                  className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded"
+                  className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded opacity-80 group-hover:opacity-100"
                   style={{ backgroundColor: palette.soft, color: palette.hex }}
                 >
-                  Admin
+                  Feed
                 </span>
-              </div>
+              </Link>
             );
           })}
         </div>

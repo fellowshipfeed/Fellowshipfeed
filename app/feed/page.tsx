@@ -60,7 +60,12 @@ function sortPosts(posts: FeedPost[]): FeedPost[] {
   });
 }
 
-export default async function FeedPage() {
+export default async function FeedPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ group?: string }>;
+}) {
+  const { group: initialGroupId } = await searchParams;
   const supabase = await createClient();
   const { data: sessionData } = await supabase.from('my_session').select('*').single();
   const session = sessionData as Session | null;
@@ -274,6 +279,7 @@ export default async function FeedPage() {
       approvedPosts={approvedPosts}
       pendingPosts={pendingPosts}
       myPosts={myPosts}
+      initialGroupId={initialGroupId ?? null}
     />
   );
 }
