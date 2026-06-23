@@ -1,8 +1,7 @@
 'use client';
 
 import type { FeedGroup, OrgResource } from '@/lib/types';
-import { getGroupStyleFromGroup } from '@/lib/group-styles';
-import { GroupDot } from './GroupDot';
+import { GroupsNavCard } from './GroupsNavCard';
 
 export type FeedView = 'home' | 'group' | 'pending' | 'yourPosts' | 'saved' | 'explore';
 
@@ -13,6 +12,7 @@ type Props = {
   activeGroupId: string | null;
   pendingCount: number;
   savedCount: number;
+  adminGroupIds?: Set<string>;
   onViewChange: (view: FeedView, groupId?: string | null) => void;
 };
 
@@ -44,81 +44,22 @@ export function MemberSidebar({
   activeGroupId,
   pendingCount,
   savedCount,
+  adminGroupIds,
   onViewChange,
 }: Props) {
   return (
     <aside className="lg:sticky lg:top-[84px] lg:self-start space-y-3.5">
-      <div className="bg-white border border-line rounded-xl overflow-hidden">
-        <div className="text-[10px] uppercase tracking-[0.09em] text-ink-muted font-semibold px-4 pt-3.5 pb-2">
-          My Groups
-        </div>
-        <button
-          type="button"
-          onClick={() => onViewChange('home')}
-          className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] border-l-[3px] transition-colors ${
-            activeView === 'home'
-              ? 'bg-accent-soft text-accent border-accent font-medium'
-              : 'text-ink-soft border-transparent hover:bg-cream-soft hover:text-ink'
-          }`}
-        >
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-            <path
-              d="M2 8l6-5 6 5v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8z"
-              stroke="currentColor"
-              strokeWidth="1.4"
-              strokeLinejoin="round"
-            />
-          </svg>
-          My Feed
-        </button>
-        {groups.map(g => {
-          const palette = getGroupStyleFromGroup(g);
-          const active = activeView === 'group' && activeGroupId === g.id;
-          return (
-            <button
-              key={g.id}
-              type="button"
-              onClick={() => onViewChange('group', g.id)}
-              className={`w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] border-l-[3px] transition-colors ${
-                active ? 'font-medium' : 'text-ink-soft border-transparent hover:bg-cream-soft hover:text-ink'
-              }`}
-              style={
-                active
-                  ? {
-                      backgroundColor: palette.soft,
-                      color: palette.hex,
-                      borderLeftColor: palette.hex,
-                    }
-                  : undefined
-              }
-            >
-              <GroupDot slug={g.slug} color={g.color} size="md" inverted={active} />
-              {g.name}
-            </button>
-          );
-        })}
-        <div className="px-3 pb-3 pt-2">
-          <button
-            type="button"
-            onClick={() => onViewChange('explore')}
-            className={`w-full p-3 border border-dashed rounded-md flex items-center gap-2.5 text-left transition-colors ${
-              activeView === 'explore'
-                ? 'border-accent bg-accent-soft'
-                : 'border-line bg-cream-soft hover:border-accent hover:bg-accent-soft'
-            }`}
-          >
-            <span className="w-6 h-6 rounded-full bg-white border border-line flex items-center justify-center text-ink-soft shrink-0">
-              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-                <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-              </svg>
-            </span>
-            <span className="text-xs font-medium text-ink leading-snug">
-              Explore groups
-              <span className="block text-[11px] text-ink-muted font-normal mt-0.5">Explore other ministries</span>
-            </span>
-          </button>
-        </div>
-      </div>
+      <GroupsNavCard
+        mode="member"
+        groups={groups}
+        adminGroupIds={adminGroupIds}
+        activeGroupId={activeGroupId}
+        activeHome={activeView === 'home'}
+        activeExplore={activeView === 'explore'}
+        onMyFeed={() => onViewChange('home')}
+        onGroup={groupId => onViewChange('group', groupId)}
+        onExplore={() => onViewChange('explore')}
+      />
 
       {resources.length > 0 && (
         <div className="bg-white border border-line rounded-xl overflow-hidden">

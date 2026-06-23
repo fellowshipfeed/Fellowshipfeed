@@ -1,11 +1,11 @@
 'use client';
 
 import type { AdminView, FeedGroup, OrgResource } from '@/lib/types';
-import { getGroupStyleFromGroup } from '@/lib/group-styles';
-import { GroupDot } from '@/components/member/GroupDot';
+import { GroupsNavCard } from '@/components/member/GroupsNavCard';
 
 type Props = {
-  groups: FeedGroup[];
+  memberGroups: FeedGroup[];
+  adminGroupIds: Set<string>;
   resources: OrgResource[];
   activeView: AdminView;
   pendingCount: number;
@@ -36,7 +36,8 @@ function ResourceIcon({ resourceKey }: { resourceKey: string }) {
 }
 
 export function AdminSidebar({
-  groups,
+  memberGroups,
+  adminGroupIds,
   resources,
   activeView,
   pendingCount,
@@ -51,44 +52,9 @@ export function AdminSidebar({
         : 'text-ink-soft border-transparent hover:bg-cream-soft hover:text-ink'
     }`;
 
-  const groupRowClass =
-    'w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors no-underline';
-
   return (
     <aside className="relative z-10 lg:sticky lg:top-[84px] lg:self-start space-y-3.5">
-      {groups.length > 0 && (
-        <div className="bg-white border border-line rounded-xl overflow-hidden">
-          <div className="text-[10px] uppercase tracking-[0.09em] text-ink-muted font-semibold px-4 pt-3.5 pb-2">
-            Groups you manage
-          </div>
-          <a href="/feed" className={groupRowClass}>
-            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
-              <path
-                d="M2 8l6-5 6 5v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8z"
-                stroke="currentColor"
-                strokeWidth="1.4"
-                strokeLinejoin="round"
-              />
-            </svg>
-            My Feed
-          </a>
-          {groups.map(g => {
-            const palette = getGroupStyleFromGroup(g);
-            return (
-              <a key={g.id} href={`/feed/group/${g.id}`} className={groupRowClass}>
-                <GroupDot slug={g.slug} color={g.color} size="md" />
-                <span className="flex-1 truncate text-ink-soft">{g.name}</span>
-                <span
-                  className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
-                  style={{ backgroundColor: palette.soft, color: palette.hex }}
-                >
-                  View feed
-                </span>
-              </a>
-            );
-          })}
-        </div>
-      )}
+      <GroupsNavCard mode="link" groups={memberGroups} adminGroupIds={adminGroupIds} />
 
       <div className="bg-white border border-line rounded-xl overflow-hidden">
         <div className="text-[10px] uppercase tracking-[0.09em] text-ink-muted font-semibold px-4 pt-3.5 pb-2">

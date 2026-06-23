@@ -11,6 +11,7 @@ import type {
 } from '@/lib/types';
 import { firstRelation } from '@/lib/supabase-helpers';
 import { buildMemberResources } from '@/lib/org-resources';
+import { buildAdminBadgeIds, buildSidebarGroups } from '@/lib/sidebar-groups';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,11 +27,14 @@ export default async function AdminPage() {
 
   const isHeadOrOwner = session.primary_role === 'head' || session.primary_role === 'owner';
   const adminGroupIds = session.admin_group_ids ?? [];
+  const memberGroupIds = session.member_group_ids ?? [];
 
   const [
     { data: org },
     { data: pendingData },
     { data: groupsData },
+    { data: memberGroupsData },
+    { data: allGroupsData },
     { data: eventsData },
     { data: resourcesData },
     { data: messagesData },
@@ -60,6 +64,16 @@ export default async function AdminPage() {
           .select('id, name, slug, color, description')
           .in('id', adminGroupIds.length ? adminGroupIds : ['00000000-0000-0000-0000-000000000000'])
           .order('name'),
+    supabase
+      .from('groups')
+      .select('id, name, slug, color, description')
+      .in('id', memberGroupIds.length ? memberGroupIds : ['00000000-0000-0000-0000-000000000000'])
+      .order('name'),
+    supabase
+      .from('groups')
+      .select('id, name, slug, color, description')
+      .eq('org_id', session.org_id)
+      .order('name'),
     supabase
       .from('events')
       .select('id, title, description, starts_at, location, capacity, group_id, group:groups(id, name)')
@@ -106,6 +120,19 @@ export default async function AdminPage() {
     color: g.color as string,
     description: (g.description as string | null) ?? null,
   }));
+
+  const mapFeedGroup = (g: Record<string, unknown>): FeedGroup => ({
+    id: g.id as string,
+    name: g.name as string,
+    slug: g.slug as string,
+    color: g.color as string,
+    description: (g.description as string | null) ?? null,
+  });
+
+  const memberGroups = (memberGroupsData ?? []).map(mapFeedGroup);
+  const allGroups = (allGroupsData ?? []).map(mapFeedGroup);
+  const sidebarGroups = buildSidebarGroups(memberGroups, allGroups, session);
+  const adminBadgeIds = [...buildAdminBadgeIds(sidebarGroups, session)];
 
   let eventRows = eventsData ?? [];
   if (!isHeadOrOwner) {
@@ -172,6 +199,8 @@ export default async function AdminPage() {
       session={session}
       orgCity={(org?.city as string | null) ?? null}
       groups={groups}
+      sidebarGroups={sidebarGroups}
+      adminBadgeIds={adminBadgeIds}
       resources={resources}
       pending={pending}
       events={events}

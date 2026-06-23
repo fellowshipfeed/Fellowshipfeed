@@ -14,6 +14,7 @@ import { PostComposer } from './PostComposer';
 import { FeedHeader } from './FeedHeader';
 import { ExploreGroups } from './ExploreGroups';
 import { AskAdminModal } from './AskAdminModal';
+import { buildAdminBadgeIds, buildSidebarGroups } from '@/lib/sidebar-groups';
 
 type Props = {
   session: Session;
@@ -65,8 +66,9 @@ export function MemberPortal({
     : null;
   const groupFromQuery = searchParams.get('group');
   const resolvedInitialGroupId = initialGroupId ?? groupFromPath ?? groupFromQuery;
-  const bootGroup = resolveGroup(resolvedInitialGroupId, initialGroups, initialAllGroups);
-  const [view, setView] = useState<FeedView>(bootGroup ? 'group' : 'home');
+  const exploreFromQuery = searchParams.get('view') === 'explore';
+  const bootGroup = exploreFromQuery ? null : resolveGroup(resolvedInitialGroupId, initialGroups, initialAllGroups);
+  const [view, setView] = useState<FeedView>(exploreFromQuery ? 'explore' : bootGroup ? 'group' : 'home');
   const [activeGroupId, setActiveGroupId] = useState<string | null>(bootGroup?.id ?? null);
   const [groups, setGroups] = useState(initialGroups);
   const [allGroups, setAllGroups] = useState(initialAllGroups);
@@ -83,26 +85,24 @@ export function MemberPortal({
   const isHeadOrOwner = session.primary_role === 'head' || session.primary_role === 'owner';
   const adminGroupIds = useMemo(() => new Set(session.admin_group_ids ?? []), [session.admin_group_ids]);
 
-  const sidebarGroups = useMemo(() => {
-    const map = new Map(groups.map(g => [g.id, { ...g, joined: true as const }]));
-    if (isHeadOrOwner) {
-      for (const g of allGroups) {
-        if (!map.has(g.id)) map.set(g.id, { ...g, joined: false });
-      }
-    } else if (session.primary_role === 'group_admin') {
-      for (const g of allGroups) {
-        if (adminGroupIds.has(g.id) && !map.has(g.id)) {
-          map.set(g.id, { ...g, joined: false });
-        }
-      }
-    }
-    return Array.from(map.values()).sort((a, b) => a.name.localeCompare(b.name));
-  }, [groups, allGroups, isHeadOrOwner, adminGroupIds, session.primary_role]);
+  const sidebarGroups = useMemo(
+    () => buildSidebarGroups(groups, allGroups, session),
+    [groups, allGroups, session],
+  );
+  const sidebarAdminBadgeIds = useMemo(
+    () => buildAdminBadgeIds(sidebarGroups, session),
+    [sidebarGroups, session],
+  );
 
   const canModerateActiveGroup =
     isHeadOrOwner || (activeGroupId != null && adminGroupIds.has(activeGroupId));
 
   useEffect(() => {
+    if (searchParams.get('view') === 'explore') {
+      setView('explore');
+      setActiveGroupId(null);
+      return;
+    }
     const groupId = groupFromPath ?? searchParams.get('group');
     if (!groupId) return;
     const g = resolveGroup(groupId, groups, allGroups);
@@ -152,6 +152,8 @@ export function MemberPortal({
     setActiveGroupId(groupId ?? null);
     if (next === 'group' && groupId) {
       router.push(`/feed/group/${groupId}`);
+    } else if (next === 'explore') {
+      router.push('/feed?view=explore');
     } else {
       router.push('/feed');
     }
@@ -363,6 +365,7 @@ export function MemberPortal({
           activeGroupId={activeGroupId}
           pendingCount={pending.length}
           savedCount={savedCount}
+          adminGroupIds={sidebarAdminBadgeIds}
           onViewChange={handleViewChange}
         />
 

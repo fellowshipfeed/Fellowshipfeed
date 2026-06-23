@@ -23,6 +23,8 @@ type Props = {
   session: Session;
   orgCity: string | null;
   groups: FeedGroup[];
+  sidebarGroups: FeedGroup[];
+  adminBadgeIds: string[];
   resources: OrgResource[];
   pending: PendingPost[];
   events: AdminEvent[];
@@ -35,6 +37,8 @@ export function AdminPortal({
   session,
   orgCity,
   groups,
+  sidebarGroups,
+  adminBadgeIds,
   resources,
   pending: initialPending,
   events: initialEvents,
@@ -50,6 +54,7 @@ export function AdminPortal({
   const [messages, setMessages] = useState(initialMessages);
 
   const unreadMessageCount = useMemo(() => messages.filter(m => !m.read_at).length, [messages]);
+  const adminBadgeIdSet = useMemo(() => new Set(adminBadgeIds), [adminBadgeIds]);
 
   const adminGroups = groups.filter(g =>
     session.primary_role === 'head' || session.primary_role === 'owner'
@@ -77,7 +82,8 @@ export function AdminPortal({
 
       <div className="max-w-[1180px] mx-auto px-4 sm:px-6 py-6 grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6">
         <AdminSidebar
-          groups={adminGroups}
+          memberGroups={sidebarGroups}
+          adminGroupIds={adminBadgeIdSet}
           resources={resources}
           activeView={view}
           pendingCount={pending.length}
