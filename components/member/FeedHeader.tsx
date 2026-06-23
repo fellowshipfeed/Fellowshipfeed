@@ -54,7 +54,7 @@ const copy: Record<HeaderVariant, { title: string; meta: string }> = {
   pending: { title: 'Posts Pending Review', meta: 'Your posts awaiting admin approval' },
   yourPosts: { title: 'Your posts', meta: "Everything you've shared" },
   saved: { title: 'Saved posts', meta: 'Posts you bookmarked for later' },
-  explore: { title: 'Explore groups', meta: 'Find your community' },
+  explore: { title: 'Explore groups', meta: 'Browse ministries and join the ones that fit you' },
 };
 
 export function FeedHeader({ variant, group }: Props) {
