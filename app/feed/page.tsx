@@ -1,7 +1,8 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { MemberPortal } from '@/components/member/MemberPortal';
-import type { FeedEvent, FeedGroup, FeedPost, OrgResource, Session } from '@/lib/types';
+import { parseSignupConfig } from '@/lib/signup-fields';
+import type { FeedEvent, FeedGroup, FeedPost, OrgCalendarSettings, OrgResource, Session } from '@/lib/types';
 import { firstRelation } from '@/lib/supabase-helpers';
 import { filterOrgResources } from '@/lib/org-resources';
 import { EMPTY_REACTIONS, aggregateReactions } from '@/lib/post-reactions';
@@ -9,7 +10,7 @@ import { EMPTY_REACTIONS, aggregateReactions } from '@/lib/post-reactions';
 export const dynamic = 'force-dynamic';
 
 const postSelect = `
-  id, body, group_id, is_parish_wide, pinned, status, created_at,
+  id, body, group_id, is_parish_wide, pinned, status, created_at, signup_config,
   author:users!posts_author_id_fkey(id, name, initials),
   attachments(id, type, url, metadata)
 `;
@@ -21,6 +22,8 @@ function mapPosts(
   reactionMap: Map<string, { reactions: FeedPost['reactions']; my_reactions: string[] }>,
   savedIds: Set<string>,
   adminPairs: Set<string>,
+  signupCounts: Map<string, number>,
+  userSignups: Set<string>,
 ): FeedPost[] {
   return (rows ?? []).map(row => {
     const id = row.id as string;
@@ -43,6 +46,9 @@ function mapPosts(
       reactions: reactionEntry?.reactions ?? { ...EMPTY_REACTIONS },
       my_reactions: reactionEntry?.my_reactions ?? [],
       saved: savedIds.has(id),
+      signup_config: parseSignupConfig(row.signup_config),
+      signup_count: signupCounts.get(id) ?? 0,
+      user_signed_up: userSignups.has(id),
     };
   });
 }
@@ -76,7 +82,7 @@ export default async function FeedPage() {
     { data: adminRolesData },
     { data: membershipCounts },
   ] = await Promise.all([
-    supabase.from('orgs').select('city').eq('id', session.org_id).single(),
+    supabase.from('orgs').select('city, google_calendar_url, calendar_ics_url').eq('id', session.org_id).single(),
     supabase.from('groups').select('id, name, slug, color, description').in('id', memberGroupIds),
     supabase.from('groups').select('id, name, slug, color, description').eq('org_id', session.org_id),
     supabase
@@ -127,12 +133,23 @@ export default async function FeedPage() {
     ]),
   ];
 
-  const [{ data: reactionsData }, { data: savesData }] = await Promise.all([
+  const [{ data: reactionsData }, { data: savesData }, { data: postSignupsData }] = await Promise.all([
     postIds.length
       ? supabase.from('reactions').select('post_id, kind, user_id').in('post_id', postIds)
       : Promise.resolve({ data: [] as { post_id: string; kind: string; user_id: string }[] }),
     supabase.from('saves').select('post_id').eq('user_id', session.user_id),
+    postIds.length
+      ? supabase.from('post_signups').select('post_id, user_id').in('post_id', postIds)
+      : Promise.resolve({ data: [] as { post_id: string; user_id: string }[] }),
   ]);
+
+  const signupCounts = new Map<string, number>();
+  const userSignups = new Set<string>();
+  for (const row of postSignupsData ?? []) {
+    const postId = row.post_id as string;
+    signupCounts.set(postId, (signupCounts.get(postId) ?? 0) + 1);
+    if (row.user_id === session.user_id) userSignups.add(postId);
+  }
 
   const savedIds = new Set((savesData ?? []).map(s => s.post_id as string));
   const reactionMap = aggregateReactions(
@@ -201,12 +218,24 @@ export default async function FeedPage() {
     .filter((r): r is OrgResource => r !== null);
 
   const approvedPosts = sortPosts(
-    mapPosts(approvedData as RawPost[] | null, reactionMap, savedIds, adminPairs),
+    mapPosts(approvedData as RawPost[] | null, reactionMap, savedIds, adminPairs, signupCounts, userSignups),
   );
-  const pendingPosts = mapPosts(pendingData as RawPost[] | null, reactionMap, savedIds, adminPairs);
+  const pendingPosts = mapPosts(
+    pendingData as RawPost[] | null,
+    reactionMap,
+    savedIds,
+    adminPairs,
+    signupCounts,
+    userSignups,
+  );
   const myPosts = sortPosts(
-    mapPosts(myPostsData as RawPost[] | null, reactionMap, savedIds, adminPairs),
+    mapPosts(myPostsData as RawPost[] | null, reactionMap, savedIds, adminPairs, signupCounts, userSignups),
   );
+
+  const calendar: OrgCalendarSettings = {
+    google_calendar_url: (org?.google_calendar_url as string | null) ?? null,
+    calendar_ics_url: (org?.calendar_ics_url as string | null) ?? null,
+  };
 
   return (
     <MemberPortal
@@ -216,6 +245,7 @@ export default async function FeedPage() {
       allGroups={allGroups}
       resources={filterOrgResources(resources)}
       events={events}
+      calendar={calendar}
       approvedPosts={approvedPosts}
       pendingPosts={pendingPosts}
       myPosts={myPosts}

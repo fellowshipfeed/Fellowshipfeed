@@ -9,6 +9,7 @@ export type Session = {
   org_slug?: string | null;
   primary_role: PrimaryRole;
   member_group_ids: string[] | null;
+  admin_group_ids?: string[] | null;
 };
 
 export type OrgResource = {
@@ -86,4 +87,38 @@ export type FeedPost = {
   reactions: PostReactions;
   my_reactions: string[];
   saved: boolean;
+  signup_config: PostSignupConfig | null;
+  signup_count: number;
+  user_signed_up: boolean;
+};
+
+export type PostSignupConfig = {
+  title: string;
+  capacity: number | null;
+  form_fields: SignupField[];
+};
+
+export type SignupField = {
+  id: string;
+  type: string;
+  label: string;
+  required: boolean;
+  hint?: string;
+  options?: string[];
+};
+
+export type OrgCalendarSettings = {
+  google_calendar_url: string | null;
+  calendar_ics_url: string | null;
+};
+
+export type AdminEvent = {
+  id: string;
+  title: string;
+  description: string | null;
+  starts_at: string;
+  location: string | null;
+  capacity: number | null;
+  group_id: string | null;
+  group_name: string | null;
 };

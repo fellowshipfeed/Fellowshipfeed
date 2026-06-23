@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
 import type { ComposerAttachment } from '@/lib/composer-attachments';
 import { saveAttachmentsForPost } from '@/lib/composer-attachments';
-import type { FeedEvent, FeedGroup, FeedPost, OrgResource, Session } from '@/lib/types';
+import type { FeedEvent, FeedGroup, FeedPost, OrgCalendarSettings, OrgResource, Session } from '@/lib/types';
 import { MemberTopBar } from './MemberTopBar';
 import { MemberSidebar, type FeedView } from './MemberSidebar';
 import { PostCard } from './PostCard';
@@ -21,6 +21,7 @@ type Props = {
   allGroups: FeedGroup[];
   resources: OrgResource[];
   events: FeedEvent[];
+  calendar: OrgCalendarSettings;
   approvedPosts: FeedPost[];
   pendingPosts: FeedPost[];
   myPosts: FeedPost[];
@@ -37,6 +38,7 @@ export function MemberPortal({
   allGroups: initialAllGroups,
   resources,
   events,
+  calendar,
   approvedPosts: initialApproved,
   pendingPosts: initialPending,
   myPosts: initialMyPosts,
@@ -82,7 +84,9 @@ export function MemberPortal({
   }, [view, activeGroupId, approvedPosts, pending, myPosts, savedPosts]);
 
   const showComposer = view === 'home' || view === 'group';
-  const showEvents = view === 'home' || view === 'group';
+  const showEvents =
+    (view === 'home' || view === 'group') &&
+    (visibleEvents.length > 0 || Boolean(calendar.google_calendar_url || calendar.calendar_ics_url));
 
   function handleViewChange(next: FeedView, groupId?: string | null) {
     setView(next);
@@ -212,6 +216,15 @@ export function MemberPortal({
     }
   }
 
+  async function handlePostSignup(postId: string) {
+    const post = approvedPosts.find(p => p.id === postId) ?? myPosts.find(p => p.id === postId);
+    if (!post) return;
+    updatePostEverywhere(postId, {
+      user_signed_up: true,
+      signup_count: post.signup_count + 1,
+    });
+  }
+
   async function toggleSave(postId: string) {
     const supabase = createClient();
     const post =
@@ -269,8 +282,8 @@ export function MemberPortal({
               {view === 'yourPosts' && <FeedHeader variant="yourPosts" />}
               {view === 'saved' && <FeedHeader variant="saved" />}
 
-              {showEvents && visibleEvents.length > 0 && (
-                <UpcomingEvents events={visibleEvents} showGroupTag={view === 'home'} />
+              {showEvents && (
+                <UpcomingEvents events={visibleEvents} calendar={calendar} showGroupTag={view === 'home'} />
               )}
 
               {pending.length > 0 && (view === 'home' || view === 'group') && (
@@ -318,6 +331,8 @@ export function MemberPortal({
                     onCancel={view === 'pending' ? cancelPendingPost : undefined}
                     onToggleReaction={view !== 'pending' ? toggleReaction : undefined}
                     onToggleSave={view !== 'pending' ? toggleSave : undefined}
+                    userId={session.user_id}
+                    onSignupUpdate={view !== 'pending' ? handlePostSignup : undefined}
                   />
                 ))
               )}

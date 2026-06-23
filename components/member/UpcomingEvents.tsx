@@ -1,88 +1,168 @@
-import type { FeedEvent } from '@/lib/types';
+'use client';
+
+import { useState } from 'react';
+import type { FeedEvent, OrgCalendarSettings } from '@/lib/types';
 import { formatEventDay, formatEventMonth, formatEventTime } from '@/lib/format';
 import { getGroupStyle } from '@/lib/group-styles';
 import { GroupDot } from './GroupDot';
 
 type Props = {
   events: FeedEvent[];
+  calendar: OrgCalendarSettings;
   showGroupTag?: boolean;
 };
 
-export function UpcomingEvents({ events, showGroupTag = false }: Props) {
-  if (events.length === 0) return null;
+export function UpcomingEvents({ events, calendar, showGroupTag = false }: Props) {
+  const [modalOpen, setModalOpen] = useState(false);
+  const hasCalendar = Boolean(calendar.google_calendar_url || calendar.calendar_ics_url);
+  const hasEvents = events.length > 0;
+
+  if (!hasEvents && !hasCalendar) return null;
+
+  function openGoogleCalendar() {
+    if (calendar.google_calendar_url) {
+      window.open(calendar.google_calendar_url, '_blank', 'noopener,noreferrer');
+    }
+  }
+
+  function copyIcsLink() {
+    if (calendar.calendar_ics_url) {
+      navigator.clipboard.writeText(calendar.calendar_ics_url);
+    }
+  }
 
   return (
-    <div className="bg-white border border-line rounded-xl px-5 pt-[18px] pb-4 mb-4">
-      <div className="flex justify-between items-baseline mb-3">
-        <div className="font-display font-medium text-[15px] tracking-tight text-ink flex items-center gap-1.5">
-          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-ink-soft" aria-hidden="true">
-            <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
-            <path d="M2 6h12M5 2v2M11 2v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-          </svg>
-          Upcoming events
-        </div>
-        <div className="flex items-center gap-3.5">
-          <span className="inline-flex items-center gap-1.5 text-xs text-accent font-medium px-2.5 py-1 rounded-full bg-accent-soft cursor-default">
-            <svg viewBox="0 0 16 16" fill="none" className="w-[13px] h-[13px]" aria-hidden="true">
+    <>
+      <div className="bg-white border border-line rounded-xl px-5 pt-[18px] pb-4 mb-4">
+        <div className="flex justify-between items-baseline mb-3">
+          <div className="font-display font-medium text-[15px] tracking-tight text-ink flex items-center gap-1.5">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" className="text-ink-soft" aria-hidden="true">
               <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
               <path d="M2 6h12M5 2v2M11 2v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              <path d="M8 8v4M6 10h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
-            Add to my calendar
-          </span>
-          <span className="text-xs text-ink-soft font-medium cursor-default">See all →</span>
-        </div>
-      </div>
-      <div className="flex gap-2.5 overflow-x-auto -mx-5 px-5 pb-2 scrollbar-thin">
-        {events.map(event => {
-          const isParish = !event.group_id;
-          const style = getGroupStyle(isParish ? 'parish' : event.group_slug, isParish ? 'parish' : event.group_slug);
-          const groupLabel = isParish ? 'Parish-wide' : (event.group_name ?? '');
-
-          return (
-            <div
-              key={event.id}
-              className="flex-[0_0_240px] border border-line rounded-[10px] p-3 bg-cream-soft hover:bg-white hover:border-ink-muted hover:-translate-y-px transition-all flex gap-3 cursor-default"
+            Upcoming events
+          </div>
+          {hasCalendar && (
+            <button
+              type="button"
+              onClick={() => setModalOpen(true)}
+              className="inline-flex items-center gap-1.5 text-xs text-accent font-medium px-2.5 py-1 rounded-full bg-accent-soft hover:bg-white border border-transparent hover:border-accent transition-colors"
             >
-              <div className="shrink-0 w-11 text-center border-r border-line pr-3 flex flex-col justify-center">
-                <div className="text-[10px] uppercase tracking-widest text-ink-soft font-semibold mb-0.5">
-                  {formatEventMonth(event.starts_at)}
-                </div>
-                <div className="font-display text-[22px] font-medium leading-none text-ink">
-                  {formatEventDay(event.starts_at)}
-                </div>
-              </div>
-              <div className="flex-1 min-w-0">
-                <div className="text-[13px] font-medium text-ink truncate">{event.title}</div>
-                <div className="text-[11px] text-ink-soft mt-0.5">{formatEventTime(event.starts_at)}</div>
-                {event.location && (
-                  <div className="text-[11px] text-ink-muted truncate">{event.location}</div>
-                )}
-                {showGroupTag && (
-                  <div className="inline-flex items-center gap-1 text-[10px] font-medium mt-1" style={{ color: style.hex }}>
-                    <GroupDot slug={isParish ? 'parish' : event.group_slug} color={isParish ? 'parish' : event.group_slug} size="xs" />
-                    {groupLabel}
+              <svg viewBox="0 0 16 16" fill="none" className="w-[13px] h-[13px]" aria-hidden="true">
+                <rect x="2" y="3" width="12" height="11" rx="1.5" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M2 6h12M5 2v2M11 2v2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+                <path d="M8 8v4M6 10h4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              Add to my calendar
+            </button>
+          )}
+        </div>
+
+        {!hasEvents ? (
+          <p className="text-sm text-ink-soft pb-2">
+            No events scheduled right now.
+            {hasCalendar ? ' Subscribe to the parish calendar to stay in sync.' : ''}
+          </p>
+        ) : (
+          <div className="flex gap-2.5 overflow-x-auto -mx-5 px-5 pb-2 scrollbar-thin">
+            {events.map(event => {
+              const isParish = !event.group_id;
+              const style = getGroupStyle(
+                isParish ? 'parish' : event.group_slug,
+                isParish ? 'parish' : event.group_slug,
+              );
+              const groupLabel = isParish ? 'Parish-wide' : (event.group_name ?? '');
+
+              return (
+                <div
+                  key={event.id}
+                  className="flex-[0_0_240px] border border-line rounded-[10px] p-3 bg-cream-soft flex gap-3"
+                >
+                  <div className="shrink-0 w-11 text-center border-r border-line pr-3 flex flex-col justify-center">
+                    <div className="text-[10px] uppercase tracking-widest text-ink-soft font-semibold mb-0.5">
+                      {formatEventMonth(event.starts_at)}
+                    </div>
+                    <div className="font-display text-[22px] font-medium leading-none text-ink">
+                      {formatEventDay(event.starts_at)}
+                    </div>
                   </div>
-                )}
-                {event.rsvped && (
-                  <div className="mt-2 flex items-center gap-1 text-[10px] text-success font-medium">
-                    <svg viewBox="0 0 16 16" fill="none" className="w-2.5 h-2.5" aria-hidden="true">
-                      <path
-                        d="M3 8l3 3 7-7"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
-                    </svg>
-                    You&apos;re going
+                  <div className="flex-1 min-w-0">
+                    <div className="text-[13px] font-medium text-ink truncate">{event.title}</div>
+                    <div className="text-[11px] text-ink-soft mt-0.5">{formatEventTime(event.starts_at)}</div>
+                    {event.location && (
+                      <div className="text-[11px] text-ink-muted truncate">{event.location}</div>
+                    )}
+                    {showGroupTag && (
+                      <div
+                        className="inline-flex items-center gap-1 text-[10px] font-medium mt-1"
+                        style={{ color: style.hex }}
+                      >
+                        <GroupDot
+                          slug={isParish ? 'parish' : event.group_slug}
+                          color={isParish ? 'parish' : event.group_slug}
+                          size="xs"
+                        />
+                        {groupLabel}
+                      </div>
+                    )}
+                    {event.rsvped && (
+                      <div className="mt-2 flex items-center gap-1 text-[10px] text-success font-medium">
+                        ✓ You&apos;re going
+                      </div>
+                    )}
                   </div>
-                )}
-              </div>
-            </div>
-          );
-        })}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-    </div>
+
+      {modalOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-ink/45 flex items-center justify-center p-4"
+          onClick={() => setModalOpen(false)}
+        >
+          <div
+            className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl"
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="font-display text-lg font-medium mb-1">Add to your calendar</h3>
+            <p className="text-sm text-ink-soft mb-4">
+              Your parish admin connected the official calendar. Pick how you want to subscribe.
+            </p>
+            <div className="space-y-2">
+              {calendar.google_calendar_url && (
+                <button
+                  type="button"
+                  onClick={openGoogleCalendar}
+                  className="w-full text-left border border-line rounded-lg px-4 py-3 hover:border-accent hover:bg-accent-soft transition-colors"
+                >
+                  <div className="font-medium text-sm">Google Calendar</div>
+                  <div className="text-xs text-ink-muted mt-0.5">Open and subscribe in Google</div>
+                </button>
+              )}
+              {calendar.calendar_ics_url && (
+                <button
+                  type="button"
+                  onClick={copyIcsLink}
+                  className="w-full text-left border border-line rounded-lg px-4 py-3 hover:border-accent hover:bg-accent-soft transition-colors"
+                >
+                  <div className="font-medium text-sm">Copy ICS link</div>
+                  <div className="text-xs text-ink-muted mt-0.5">For Apple Calendar, Outlook, and others</div>
+                </button>
+              )}
+            </div>
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="mt-4 w-full border border-line rounded-md py-2 text-sm"
+            >
+              Close
+            </button>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

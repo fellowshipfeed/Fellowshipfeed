@@ -6,15 +6,18 @@ import { formatRelativeTime } from '@/lib/format';
 import { totalReactions } from '@/lib/post-reactions';
 import { GroupDot } from './GroupDot';
 import { PostAttachments } from './PostAttachments';
+import { PostSignupStrip } from './PostSignupStrip';
 
 type Props = {
   post: FeedPost;
   groups: FeedGroup[];
   orgName: string;
   showYou?: boolean;
+  userId?: string;
   onCancel?: (postId: string) => void;
   onToggleReaction?: (postId: string, kind: string) => void;
   onToggleSave?: (postId: string) => void;
+  onSignupUpdate?: (postId: string) => void;
 };
 
 export function PostCard({
@@ -25,6 +28,8 @@ export function PostCard({
   onCancel,
   onToggleReaction,
   onToggleSave,
+  userId,
+  onSignupUpdate,
 }: Props) {
   const group = groups.find(g => g.id === post.group_id);
   const style = post.is_parish_wide
@@ -111,6 +116,14 @@ export function PostCard({
       ) : null}
 
       <PostAttachments attachments={post.attachments} />
+
+      {post.signup_config && post.status === 'approved' && userId && onSignupUpdate && (
+        <PostSignupStrip
+          post={post}
+          userId={userId}
+          onSignedUp={() => onSignupUpdate(post.id)}
+        />
+      )}
 
       {isPending && onCancel ? (
         <div className="flex items-center gap-2 pt-3 border-t border-line-soft">

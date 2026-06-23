@@ -13,6 +13,7 @@ Your full database schema lives here — it was built in Claude but never commit
 | `03_provision_member.sql` | Link member test login |
 | `05_content_updates.sql` | Hide extra resources + add Isabel to Women group |
 | `07_post_attachments_storage.sql` | Storage bucket + upload policies for post files |
+| `08_admin_events_signups.sql` | Org calendar URLs, post sign-up config, `post_signups` table |
 
 > **Note:** `01_schema.sql` was a temporary simplified schema created during deployment troubleshooting. Use the `anchor_*.sql` files instead.
 
@@ -45,6 +46,8 @@ Turn **Auto Confirm User** ON for each.
 
 Run `02_provision_elideeb.sql` for your owner account.  
 Run `03_provision_member.sql` for the member test account.
+
+For existing databases, also run `08_admin_events_signups.sql` to enable admin calendar settings and post sign-ups.
 
 ### 4. Sign in
 
