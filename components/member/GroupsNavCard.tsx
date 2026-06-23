@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
 import type { FeedGroup } from '@/lib/types';
 import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { GroupDot } from './GroupDot';
@@ -41,12 +40,8 @@ function AdminBadge({ group, adminGroupIds }: { group: FeedGroup; adminGroupIds?
 
 export function GroupsNavCard(props: Props) {
   const { groups, adminGroupIds } = props;
-  const pathname = usePathname();
-  const activeGroupFromPath = pathname.startsWith('/feed/group/')
-    ? pathname.replace('/feed/group/', '').split('/')[0]
-    : null;
 
-  const groupRowClass = (active: boolean, palette?: ReturnType<typeof getGroupStyleFromGroup>) =>
+  const groupRowClass = (active: boolean) =>
     `w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] border-l-[3px] transition-colors no-underline cursor-pointer ${
       active ? 'font-medium' : 'text-ink-soft border-transparent hover:bg-cream-soft hover:text-ink'
     }`;
@@ -58,7 +53,7 @@ export function GroupsNavCard(props: Props) {
       </div>
 
       {props.mode === 'link' ? (
-        <Link href="/feed" scroll={false} className={`${groupRowClass(pathname === '/feed')} border-transparent`}>
+        <Link href="/feed" className={`${groupRowClass(false)} border-transparent`}>
           <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
             <path
               d="M2 8l6-5 6 5v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8z"
@@ -94,26 +89,14 @@ export function GroupsNavCard(props: Props) {
       {groups.map(g => {
         const palette = getGroupStyleFromGroup(g);
         const active = props.mode === 'member' && props.activeGroupId === g.id;
-
         if (props.mode === 'link') {
-          const linkActive = activeGroupFromPath === g.id;
           return (
             <Link
               key={g.id}
-              href={`/feed/group/${g.id}`}
-              scroll={false}
-              className={groupRowClass(linkActive, palette)}
-              style={
-                linkActive
-                  ? {
-                      backgroundColor: palette.soft,
-                      color: palette.hex,
-                      borderLeftColor: palette.hex,
-                    }
-                  : undefined
-              }
+              href={`/feed?group=${g.id}`}
+              className={groupRowClass(false)}
             >
-              <GroupDot slug={g.slug} color={g.color} size="md" inverted={linkActive} />
+              <GroupDot slug={g.slug} color={g.color} size="md" />
               <span className="flex-1 truncate text-left">{g.name}</span>
               <AdminBadge group={g} adminGroupIds={adminGroupIds} />
             </Link>
@@ -125,7 +108,7 @@ export function GroupsNavCard(props: Props) {
             key={g.id}
             type="button"
             onClick={() => props.onGroup(g.id)}
-            className={groupRowClass(active, palette)}
+            className={groupRowClass(active)}
             style={
               active
                 ? {
@@ -147,7 +130,6 @@ export function GroupsNavCard(props: Props) {
         {props.mode === 'link' ? (
           <Link
             href="/feed?view=explore"
-            scroll={false}
             className="w-full p-3 border border-dashed rounded-md flex items-center gap-2.5 text-left transition-colors border-line bg-cream-soft hover:border-accent hover:bg-accent-soft no-underline cursor-pointer"
           >
             <span className="w-6 h-6 rounded-full bg-white border border-line flex items-center justify-center text-ink-soft shrink-0">

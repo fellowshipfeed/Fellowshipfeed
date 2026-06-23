@@ -1,7 +1,6 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
 import type { ComposerAttachment } from '@/lib/composer-attachments';
 import { saveAttachmentsForPost } from '@/lib/composer-attachments';
@@ -16,6 +15,7 @@ import { ExploreGroups } from './ExploreGroups';
 import { AskAdminModal } from './AskAdminModal';
 import { buildAdminBadgeIds, buildSidebarGroups } from '@/lib/sidebar-groups';
 import { canAutoApproveGroup } from '@/lib/post-moderation';
+import { feedUrlForView, parseFeedUrl, sortPostsByDate } from '@/lib/feed-url';
 
 type Props = {
   session: Session;
@@ -30,6 +30,7 @@ type Props = {
   myPosts: FeedPost[];
   headUserId: string | null;
   initialGroupId?: string | null;
+  initialView?: FeedView;
 };
 
 function patchPost(posts: FeedPost[], postId: string, patch: Partial<FeedPost>): FeedPost[] {
@@ -58,18 +59,11 @@ export function MemberPortal({
   myPosts: initialMyPosts,
   headUserId,
   initialGroupId,
+  initialView = 'home',
 }: Props) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-  const groupFromPath = pathname.startsWith('/feed/group/')
-    ? pathname.replace('/feed/group/', '').split('/')[0]
-    : null;
-  const groupFromQuery = searchParams.get('group');
-  const resolvedInitialGroupId = initialGroupId ?? groupFromPath ?? groupFromQuery;
-  const exploreFromQuery = searchParams.get('view') === 'explore';
-  const bootGroup = exploreFromQuery ? null : resolveGroup(resolvedInitialGroupId, initialGroups, initialAllGroups);
-  const [view, setView] = useState<FeedView>(exploreFromQuery ? 'explore' : bootGroup ? 'group' : 'home');
+  const bootGroup =
+    initialView === 'group' ? resolveGroup(initialGroupId, initialGroups, initialAllGroups) : null;
+  const [view, setView] = useState<FeedView>(initialView);
   const [activeGroupId, setActiveGroupId] = useState<string | null>(bootGroup?.id ?? null);
   const [groups, setGroups] = useState(initialGroups);
   const [allGroups, setAllGroups] = useState(initialAllGroups);
@@ -99,35 +93,19 @@ export function MemberPortal({
     isHeadOrOwner || (activeGroupId != null && adminGroupIds.has(activeGroupId));
 
   useEffect(() => {
-    setGroups(initialGroups);
-    setAllGroups(initialAllGroups);
-    setApprovedPosts(initialApproved);
-    setPending(initialPending);
-    setMyPosts(initialMyPosts);
-  }, [initialGroups, initialAllGroups, initialApproved, initialPending, initialMyPosts]);
-
-  useEffect(() => {
-    if (searchParams.get('view') === 'explore') {
-      setView('explore');
-      setActiveGroupId(null);
-      return;
-    }
-
-    const groupId = groupFromPath ?? searchParams.get('group');
-    if (!groupId) {
-      if (pathname === '/feed') {
-        setView('home');
+    function onPopState() {
+      const { view: nextView, groupId } = parseFeedUrl(window.location.search);
+      setView(nextView);
+      if (nextView === 'group' && groupId) {
+        const g = resolveGroup(groupId, groups, allGroups);
+        setActiveGroupId(g?.id ?? groupId);
+      } else {
         setActiveGroupId(null);
       }
-      return;
     }
-
-    const g = resolveGroup(groupId, groups, allGroups);
-    if (g) {
-      setView('group');
-      setActiveGroupId(g.id);
-    }
-  }, [pathname, groupFromPath, searchParams, groups, allGroups]);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
+  }, [groups, allGroups]);
 
   const savedPosts = useMemo(() => approvedPosts.filter(p => p.saved), [approvedPosts]);
   const savedCount = savedPosts.length;
@@ -147,15 +125,19 @@ export function MemberPortal({
     if (view === 'yourPosts') return myPosts;
     if (view === 'saved') return savedPosts;
     if (view === 'group' && activeGroupId) {
-      return approvedPosts.filter(p => p.group_id === activeGroupId && !p.is_parish_wide);
+      const approved = approvedPosts.filter(p => p.group_id === activeGroupId && !p.is_parish_wide);
+      const myPendingHere = pending.filter(p => p.group_id === activeGroupId);
+      return sortPostsByDate([...myPendingHere, ...approved]);
     }
     if (view === 'home') {
-      return approvedPosts.filter(
+      const approved = approvedPosts.filter(
         p => p.is_parish_wide || (p.group_id && memberGroupIds.has(p.group_id)),
       );
+      const myPendingOnHome = pending.filter(p => p.group_id && memberGroupIds.has(p.group_id));
+      return sortPostsByDate([...myPendingOnHome, ...approved]);
     }
     return [];
-  }, [view, activeGroupId, approvedPosts, pending, myPosts, savedPosts]);
+  }, [view, activeGroupId, approvedPosts, pending, myPosts, savedPosts, memberGroupIds]);
 
   const showComposer =
     (view === 'home' || view === 'group') &&
@@ -177,13 +159,7 @@ export function MemberPortal({
   function handleViewChange(next: FeedView, groupId?: string | null) {
     setView(next);
     setActiveGroupId(groupId ?? null);
-    if (next === 'group' && groupId) {
-      router.push(`/feed/group/${groupId}`, { scroll: false });
-    } else if (next === 'explore') {
-      router.push('/feed?view=explore', { scroll: false });
-    } else {
-      router.push('/feed', { scroll: false });
-    }
+    window.history.replaceState(null, '', feedUrlForView(next, groupId));
   }
 
   const updatePostEverywhere = useCallback((postId: string, patch: Partial<FeedPost>) => {
@@ -212,6 +188,7 @@ export function MemberPortal({
     const { error } = await supabase.from('posts').delete().eq('id', postId).eq('status', 'pending');
     if (error) return;
     setPending(prev => prev.filter(p => p.id !== postId));
+    setMyPosts(prev => prev.filter(p => p.id !== postId));
   }
 
   async function submitPost(body: string, groupIds: string[], attachments: ComposerAttachment[]) {
@@ -305,8 +282,6 @@ export function MemberPortal({
     if (view === 'group' && activeGroupId === groupId) {
       handleViewChange('explore');
     }
-
-    router.refresh();
   }
 
   async function joinGroup(groupId: string) {
@@ -321,7 +296,6 @@ export function MemberPortal({
       setGroups(prev => [...prev, { ...joined, joined: true }]);
     }
     setAllGroups(prev => prev.map(g => (g.id === groupId ? { ...g, joined: true } : g)));
-    router.refresh();
   }
 
   async function toggleReaction(postId: string, kind: string) {
@@ -460,7 +434,6 @@ export function MemberPortal({
 
               {showComposer && (
                 <PostComposer
-                  key={view === 'group' ? `group-${activeGroupId}` : 'home'}
                   userInitials={session.initials}
                   groups={composerGroups}
                   fixedGroupId={view === 'group' ? activeGroupId : null}
@@ -472,21 +445,24 @@ export function MemberPortal({
               {visiblePosts.length === 0 ? (
                 <EmptyState view={view} />
               ) : (
-                visiblePosts.map(p => (
+                visiblePosts.map(p => {
+                  const isOwnPending = p.status === 'pending';
+                  return (
                   <PostCard
                     key={p.id}
                     post={p}
                     groups={sidebarGroups}
                     orgName={session.org_name}
-                    showYou={view === 'pending' || view === 'yourPosts'}
-                    onCancel={view === 'pending' ? cancelPendingPost : undefined}
-                    onEdit={view === 'pending' ? editPendingPost : undefined}
-                    onToggleReaction={view !== 'pending' ? toggleReaction : undefined}
-                    onToggleSave={view !== 'pending' ? toggleSave : undefined}
+                    showYou={isOwnPending || view === 'pending' || view === 'yourPosts'}
+                    onCancel={isOwnPending ? cancelPendingPost : undefined}
+                    onEdit={isOwnPending ? editPendingPost : undefined}
+                    onToggleReaction={!isOwnPending ? toggleReaction : undefined}
+                    onToggleSave={!isOwnPending ? toggleSave : undefined}
                     userId={session.user_id}
-                    onSignupUpdate={view !== 'pending' ? handlePostSignup : undefined}
+                    onSignupUpdate={!isOwnPending ? handlePostSignup : undefined}
                   />
-                ))
+                  );
+                })
               )}
             </>
           )}

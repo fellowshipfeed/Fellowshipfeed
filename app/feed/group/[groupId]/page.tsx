@@ -1,6 +1,4 @@
-import { Suspense } from 'react';
-import { MemberPortal } from '@/components/member/MemberPortal';
-import { loadFeedPage } from '@/lib/load-feed-page';
+import { redirect } from 'next/navigation';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,11 +8,5 @@ export default async function GroupFeedPage({
   params: Promise<{ groupId: string }>;
 }) {
   const { groupId } = await params;
-  const data = await loadFeedPage();
-
-  return (
-    <Suspense fallback={<div className="min-h-screen bg-cream" />}>
-      <MemberPortal {...data} initialGroupId={groupId} />
-    </Suspense>
-  );
+  redirect(`/feed?group=${groupId}`);
 }
