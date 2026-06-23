@@ -9,10 +9,9 @@ type Props = {
   groups: FeedGroup[];
   onJoin: (groupId: string) => Promise<void>;
   onLeave: (groupId: string) => Promise<void>;
-  onOpenGroup: (groupId: string) => void;
 };
 
-export function ExploreGroups({ groups, onJoin, onLeave, onOpenGroup }: Props) {
+export function ExploreGroups({ groups, onJoin, onLeave }: Props) {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [busyAction, setBusyAction] = useState<'join' | 'leave' | null>(null);
 
@@ -71,13 +70,17 @@ export function ExploreGroups({ groups, onJoin, onLeave, onOpenGroup }: Props) {
             <div className="flex gap-2 mt-auto">
               {g.joined ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => onOpenGroup(g.id)}
-                    className="flex-1 bg-accent text-white text-[13px] font-medium px-4 py-2 rounded-md hover:bg-accent-hover"
+                  <div
+                    className="flex-1 flex items-center justify-center gap-1.5 text-[13px] font-medium px-4 py-2 rounded-md border"
+                    style={{
+                      backgroundColor: palette.soft,
+                      borderColor: palette.hex,
+                      color: palette.hex,
+                    }}
                   >
-                    Open group
-                  </button>
+                    <span aria-hidden="true">✓</span>
+                    Joined
+                  </div>
                   <button
                     type="button"
                     disabled={isBusy}

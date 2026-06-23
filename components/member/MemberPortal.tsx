@@ -254,12 +254,7 @@ export function MemberPortal({
           {view === 'explore' ? (
             <>
               <FeedHeader variant="explore" />
-              <ExploreGroups
-                groups={allGroups}
-                onJoin={joinGroup}
-                onLeave={leaveGroup}
-                onOpenGroup={id => handleViewChange('group', id)}
-              />
+              <ExploreGroups groups={allGroups} onJoin={joinGroup} onLeave={leaveGroup} />
             </>
           ) : (
             <>
