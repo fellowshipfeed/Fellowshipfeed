@@ -92,7 +92,7 @@ export function MemberSidebar({
                   : undefined
               }
             >
-              <GroupDot slug={g.slug} color={g.color} size="md" />
+              <GroupDot slug={g.slug} color={g.color} size="md" inverted={active} />
               {g.name}
             </button>
           );

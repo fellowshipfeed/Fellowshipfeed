@@ -1,4 +1,10 @@
-import { groupDotSizes, groupDotStyle, type GroupDotSize } from '@/lib/group-styles';
+import { groupDotStyle, type GroupDotSize } from '@/lib/group-styles';
+
+const dotPixelSizes: Record<GroupDotSize, number> = {
+  xs: 7,
+  sm: 8,
+  md: 10,
+};
 
 type Props = {
   slug?: string | null;
@@ -18,13 +24,15 @@ export function GroupDot({
   className = '',
 }: Props) {
   const group = { slug: slug ?? '', color };
-  const sizeClass = groupDotSizes[size];
+  const px = dotPixelSizes[size];
   const dot = groupDotStyle(group, inverted);
 
   return (
     <span
-      className={`rounded-full shrink-0 inline-block ${sizeClass} ${className}`}
+      className={`rounded-full shrink-0 inline-block ${className}`}
       style={{
+        width: px,
+        height: px,
         backgroundColor: dot.backgroundColor,
         boxShadow: ring ? dot.boxShadow : undefined,
       }}
