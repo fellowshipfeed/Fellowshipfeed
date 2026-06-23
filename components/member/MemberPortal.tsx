@@ -3,6 +3,8 @@
 import { useCallback, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
+import type { ComposerAttachment } from '@/lib/composer-attachments';
+import { saveAttachmentsForPost } from '@/lib/composer-attachments';
 import type { FeedEvent, FeedGroup, FeedPost, OrgResource, Session } from '@/lib/types';
 import { MemberTopBar } from './MemberTopBar';
 import { MemberSidebar, type FeedView } from './MemberSidebar';
@@ -100,18 +102,34 @@ export function MemberPortal({
     setPending(prev => prev.filter(p => p.id !== postId));
   }
 
-  async function submitPost(body: string, groupIds: string[]) {
+  async function submitPost(body: string, groupIds: string[], attachments: ComposerAttachment[]) {
     const supabase = createClient();
     for (const groupId of groupIds) {
-      const { error } = await supabase.from('posts').insert({
-        author_id: session.user_id,
-        group_id: groupId,
-        org_id: session.org_id,
-        body,
-        status: 'pending',
-        is_parish_wide: false,
-      });
+      const { data: post, error } = await supabase
+        .from('posts')
+        .insert({
+          author_id: session.user_id,
+          group_id: groupId,
+          org_id: session.org_id,
+          body: body || ' ',
+          status: 'pending',
+          is_parish_wide: false,
+        })
+        .select('id')
+        .single();
+
       if (error) throw new Error(error.message);
+
+      if (attachments.length > 0) {
+        try {
+          await saveAttachmentsForPost(supabase, post.id, session.org_id, attachments);
+        } catch (uploadError) {
+          await supabase.from('posts').delete().eq('id', post.id);
+          throw uploadError instanceof Error
+            ? uploadError
+            : new Error('Could not upload attachments. Make sure post-attachments storage is configured.');
+        }
+      }
     }
     router.refresh();
   }

@@ -12,7 +12,7 @@ Your full database schema lives here — it was built in Claude but never commit
 | `02_provision_elideeb.sql` | Link your owner login |
 | `03_provision_member.sql` | Link member test login |
 | `05_content_updates.sql` | Hide extra resources + add Isabel to Women group |
-| `06_member_portal_seed.sql` | Events, pinned posts, sample reactions |
+| `07_post_attachments_storage.sql` | Storage bucket + upload policies for post files |
 
 > **Note:** `01_schema.sql` was a temporary simplified schema created during deployment troubleshooting. Use the `anchor_*.sql` files instead.
 

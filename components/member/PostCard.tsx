@@ -5,6 +5,7 @@ import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { formatRelativeTime } from '@/lib/format';
 import { totalReactions } from '@/lib/post-reactions';
 import { GroupDot } from './GroupDot';
+import { PostAttachments } from './PostAttachments';
 
 type Props = {
   post: FeedPost;
@@ -105,7 +106,11 @@ export function PostCard({
         </div>
       </div>
 
-      <p className="text-sm leading-[1.65] whitespace-pre-wrap text-ink mb-3.5">{post.body}</p>
+      {post.body.trim() ? (
+        <p className="text-sm leading-[1.65] whitespace-pre-wrap text-ink mb-3.5">{post.body.trim()}</p>
+      ) : null}
+
+      <PostAttachments attachments={post.attachments} />
 
       {isPending && onCancel ? (
         <div className="flex items-center gap-2 pt-3 border-t border-line-soft">

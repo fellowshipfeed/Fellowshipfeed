@@ -97,25 +97,27 @@ export function MemberSidebar({
             </button>
           );
         })}
-        <button
-          type="button"
-          onClick={() => onViewChange('explore')}
-          className={`mx-3 mb-3 mt-2 p-3 border border-dashed rounded-md flex items-center gap-2.5 text-left transition-colors ${
-            activeView === 'explore'
-              ? 'border-accent bg-accent-soft'
-              : 'border-line bg-cream-soft hover:border-accent hover:bg-accent-soft'
-          }`}
-        >
-          <span className="w-6 h-6 rounded-full bg-white border border-line flex items-center justify-center text-ink-soft shrink-0">
-            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
-              <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-            </svg>
-          </span>
-          <span className="text-xs font-medium text-ink leading-snug">
-            Explore groups
-            <span className="block text-[11px] text-ink-muted font-normal mt-0.5">Explore other ministries</span>
-          </span>
-        </button>
+        <div className="px-3 pb-3 pt-2">
+          <button
+            type="button"
+            onClick={() => onViewChange('explore')}
+            className={`w-full p-3 border border-dashed rounded-md flex items-center gap-2.5 text-left transition-colors ${
+              activeView === 'explore'
+                ? 'border-accent bg-accent-soft'
+                : 'border-line bg-cream-soft hover:border-accent hover:bg-accent-soft'
+            }`}
+          >
+            <span className="w-6 h-6 rounded-full bg-white border border-line flex items-center justify-center text-ink-soft shrink-0">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                <path d="M6 2v8M2 6h8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              </svg>
+            </span>
+            <span className="text-xs font-medium text-ink leading-snug">
+              Explore groups
+              <span className="block text-[11px] text-ink-muted font-normal mt-0.5">Explore other ministries</span>
+            </span>
+          </button>
+        </div>
       </div>
 
       {resources.length > 0 && (
