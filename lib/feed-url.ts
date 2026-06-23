@@ -23,7 +23,7 @@ export function parseFeedUrl(search: string): { view: FeedView; groupId: string 
   return { view: 'home', groupId: null };
 }
 
-export function sortPostsByDate(posts: { created_at: string }[]): typeof posts {
+export function sortPostsByDate<T extends { created_at: string }>(posts: T[]): T[] {
   return [...posts].sort(
     (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime(),
   );
