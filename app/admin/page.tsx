@@ -103,6 +103,14 @@ export default async function AdminPage() {
   } else if (!isHeadOrOwner) {
     pendingRows = [];
   }
+  pendingRows = pendingRows.filter(row => {
+    const author = firstRelation(
+      row.author as { id: string } | { id: string }[] | null,
+    );
+    const groupId = row.group_id as string;
+    if (author?.id === session.user_id && adminGroupIds.includes(groupId)) return false;
+    return true;
+  });
 
   const pending: PendingPost[] = pendingRows.map(row => ({
     id: row.id as string,

@@ -12,10 +12,11 @@ type Props = {
   userInitials: string;
   groups: FeedGroup[];
   fixedGroupId?: string | null;
+  canAutoApproveGroup?: (groupId: string) => boolean;
   onSubmit: (body: string, groupIds: string[], attachments: ComposerAttachment[]) => Promise<void>;
 };
 
-export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: Props) {
+export function PostComposer({ userInitials, groups, fixedGroupId, canAutoApproveGroup, onSubmit }: Props) {
   const [body, setBody] = useState('');
   const [selected, setSelected] = useState<Set<string>>(
     () => new Set(fixedGroupId ? [fixedGroupId] : []),
@@ -30,6 +31,7 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
 
   const targetGroupIds = fixedGroupId ? [fixedGroupId] : Array.from(selected);
   const fixedGroup = fixedGroupId ? groups.find(g => g.id === fixedGroupId) : null;
+  const needsReview = targetGroupIds.some(id => !canAutoApproveGroup?.(id));
 
   useEffect(() => {
     if (fixedGroupId) {
@@ -108,7 +110,11 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
       setShowLinkRow(false);
       setLinkUrl('');
       setSelected(fixedGroupId ? new Set([fixedGroupId]) : new Set());
-      setMessage('Submitted for review — your group admin will see it shortly.');
+      setMessage(
+        needsReview
+          ? 'Submitted for review — your group admin will see it shortly.'
+          : 'Posted to the group feed.',
+      );
       setTimeout(() => setMessage(''), 4000);
     } catch (err) {
       setMessage(err instanceof Error ? err.message : 'Could not submit post');
@@ -271,13 +277,15 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
             </svg>
           </button>
           <span className="w-2" />
-          <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-ink-muted">
-            <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="text-pending" aria-hidden="true">
-              <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
-              <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-            </svg>
-            Will be reviewed by admin before posting
-          </div>
+          {needsReview && (
+            <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-ink-muted">
+              <svg width="13" height="13" viewBox="0 0 16 16" fill="none" className="text-pending" aria-hidden="true">
+                <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M8 5v3l2 2" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              Will be reviewed by admin before posting
+            </div>
+          )}
         </div>
         <button
           type="button"
@@ -285,7 +293,7 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
           disabled={!canSubmit}
           className="bg-accent text-white font-medium text-[13px] px-[18px] py-2 rounded-md hover:bg-accent-hover disabled:bg-ink-muted disabled:cursor-not-allowed"
         >
-          {submitting ? 'Submitting…' : 'Submit for review'}
+          {submitting ? 'Posting…' : needsReview ? 'Submit for review' : 'Post'}
         </button>
       </div>
       {message && (

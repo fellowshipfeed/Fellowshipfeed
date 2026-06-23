@@ -15,6 +15,7 @@ import { FeedHeader } from './FeedHeader';
 import { ExploreGroups } from './ExploreGroups';
 import { AskAdminModal } from './AskAdminModal';
 import { buildAdminBadgeIds, buildSidebarGroups } from '@/lib/sidebar-groups';
+import { canAutoApproveGroup } from '@/lib/post-moderation';
 
 type Props = {
   session: Session;
@@ -142,7 +143,17 @@ export function MemberPortal({
 
   const showComposer =
     (view === 'home' || view === 'group') &&
-    (view === 'home' || !activeGroupId || memberGroupIds.has(activeGroupId));
+    (view === 'home' || !activeGroupId || memberGroupIds.has(activeGroupId) || canModerateActiveGroup);
+
+  const canAutoApprove = useCallback(
+    (groupId: string) => canAutoApproveGroup(session, groupId),
+    [session],
+  );
+
+  const composerGroups = useMemo(
+    () => sidebarGroups.filter(g => g.joined !== false || canAutoApprove(g.id)),
+    [sidebarGroups, canAutoApprove],
+  );
   const showEvents =
     (view === 'home' || view === 'group') &&
     (visibleEvents.length > 0 || Boolean(calendar.google_calendar_url || calendar.calendar_ics_url));
@@ -190,6 +201,8 @@ export function MemberPortal({
   async function submitPost(body: string, groupIds: string[], attachments: ComposerAttachment[]) {
     const supabase = createClient();
     for (const groupId of groupIds) {
+      const autoApprove = canAutoApprove(groupId);
+      const now = new Date().toISOString();
       const { data: post, error } = await supabase
         .from('posts')
         .insert({
@@ -197,8 +210,9 @@ export function MemberPortal({
           group_id: groupId,
           org_id: session.org_id,
           body: body || ' ',
-          status: 'pending',
+          status: autoApprove ? 'approved' : 'pending',
           is_parish_wide: false,
+          ...(autoApprove ? { approved_at: now, approved_by: session.user_id } : {}),
         })
         .select('id, created_at')
         .single();
@@ -216,15 +230,16 @@ export function MemberPortal({
         }
       }
 
-      const pendingPost: FeedPost = {
+      const newPost: FeedPost = {
         id: post.id,
         body: body || ' ',
         group_id: groupId,
         is_parish_wide: false,
         pinned: false,
-        status: 'pending',
+        status: autoApprove ? 'approved' : 'pending',
         created_at: post.created_at,
         author: { id: session.user_id, name: session.name, initials: session.initials },
+        author_is_admin: autoApprove,
         attachments: [],
         reactions: { heart: 0, pray: 0, in: 0, amen: 0 },
         my_reactions: [],
@@ -233,10 +248,14 @@ export function MemberPortal({
         signup_count: 0,
         user_signed_up: false,
       };
-      setPending(prev => [pendingPost, ...prev]);
-      setMyPosts(prev => [pendingPost, ...prev]);
+
+      setMyPosts(prev => [newPost, ...prev]);
+      if (autoApprove) {
+        setApprovedPosts(prev => [newPost, ...prev]);
+      } else {
+        setPending(prev => [newPost, ...prev]);
+      }
     }
-    router.refresh();
   }
 
   async function leaveGroup(groupId: string) {
@@ -437,8 +456,9 @@ export function MemberPortal({
                 <PostComposer
                   key={view === 'group' ? `group-${activeGroupId}` : 'home'}
                   userInitials={session.initials}
-                  groups={groups}
+                  groups={composerGroups}
                   fixedGroupId={view === 'group' ? activeGroupId : null}
+                  canAutoApproveGroup={canAutoApprove}
                   onSubmit={submitPost}
                 />
               )}
