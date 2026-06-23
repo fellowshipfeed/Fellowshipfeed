@@ -128,3 +128,15 @@ export type AdminEvent = {
   group_id: string | null;
   group_name: string | null;
 };
+
+export type AdminMessage = {
+  id: string;
+  body: string;
+  created_at: string;
+  read_at: string | null;
+  group_id: string | null;
+  group_name: string | null;
+  from_user: { id: string; name: string; initials: string } | null;
+};
+
+export type AdminView = 'approvals' | 'events' | 'calendar' | 'messages';

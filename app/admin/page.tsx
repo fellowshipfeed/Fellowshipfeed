@@ -1,9 +1,16 @@
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
-import { TopBar } from '@/components/TopBar';
-import { AdminPanel } from '@/components/admin/AdminPanel';
-import type { AdminEvent, OrgCalendarSettings, PendingPost, Session } from '@/lib/types';
+import { AdminPortal } from '@/components/admin/AdminPortal';
+import type {
+  AdminEvent,
+  AdminMessage,
+  FeedGroup,
+  OrgCalendarSettings,
+  PendingPost,
+  Session,
+} from '@/lib/types';
 import { firstRelation } from '@/lib/supabase-helpers';
+import { buildMemberResources } from '@/lib/org-resources';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,11 +28,18 @@ export default async function AdminPage() {
   const adminGroupIds = session.admin_group_ids ?? [];
 
   const [
+    { data: org },
     { data: pendingData },
     { data: groupsData },
     { data: eventsData },
-    { data: orgData },
+    { data: resourcesData },
+    { data: messagesData },
   ] = await Promise.all([
+    supabase
+      .from('orgs')
+      .select('city, google_calendar_url, calendar_ics_url')
+      .eq('id', session.org_id)
+      .single(),
     supabase
       .from('posts')
       .select(`
@@ -36,8 +50,16 @@ export default async function AdminPage() {
       .eq('status', 'pending')
       .order('created_at', { ascending: true }),
     isHeadOrOwner
-      ? supabase.from('groups').select('id, name').eq('org_id', session.org_id).order('name')
-      : supabase.from('groups').select('id, name').in('id', adminGroupIds).order('name'),
+      ? supabase
+          .from('groups')
+          .select('id, name, slug, color, description')
+          .eq('org_id', session.org_id)
+          .order('name')
+      : supabase
+          .from('groups')
+          .select('id, name, slug, color, description')
+          .in('id', adminGroupIds.length ? adminGroupIds : ['00000000-0000-0000-0000-000000000000'])
+          .order('name'),
     supabase
       .from('events')
       .select('id, title, description, starts_at, location, capacity, group_id, group:groups(id, name)')
@@ -46,10 +68,19 @@ export default async function AdminPage() {
       .order('starts_at', { ascending: true })
       .limit(50),
     supabase
-      .from('orgs')
-      .select('google_calendar_url, calendar_ics_url')
-      .eq('id', session.org_id)
-      .single(),
+      .from('org_resources')
+      .select('url, enabled, resource:standard_resources(key, label, sort_order)')
+      .eq('org_id', session.org_id),
+    supabase
+      .from('messages')
+      .select(`
+        id, body, created_at, read_at, group_id,
+        from_user:users!messages_from_user_id_fkey(id, name, initials),
+        group:groups(name)
+      `)
+      .eq('to_user_id', session.user_id)
+      .order('created_at', { ascending: false })
+      .limit(100),
   ]);
 
   let pendingRows = pendingData ?? [];
@@ -68,7 +99,13 @@ export default async function AdminPage() {
     group: firstRelation(row.group),
   }));
 
-  const groups = (groupsData ?? []).map(g => ({ id: g.id as string, name: g.name as string }));
+  const groups: FeedGroup[] = (groupsData ?? []).map(g => ({
+    id: g.id as string,
+    name: g.name as string,
+    slug: g.slug as string,
+    color: g.color as string,
+    description: (g.description as string | null) ?? null,
+  }));
 
   let eventRows = eventsData ?? [];
   if (!isHeadOrOwner) {
@@ -93,49 +130,54 @@ export default async function AdminPage() {
   });
 
   const calendar: OrgCalendarSettings = {
-    google_calendar_url: (orgData?.google_calendar_url as string | null) ?? null,
-    calendar_ics_url: (orgData?.calendar_ics_url as string | null) ?? null,
+    google_calendar_url: (org?.google_calendar_url as string | null) ?? null,
+    calendar_ics_url: (org?.calendar_ics_url as string | null) ?? null,
   };
 
-  return (
-    <div>
-      <TopBar
-        orgName={session.org_name}
-        userName={session.name}
-        userInitials={session.initials}
-        rolePill="Admin"
-      />
-      <div className="max-w-3xl mx-auto px-6 py-6">
-        <div className="bg-white border border-line rounded-xl p-6 mb-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-lg bg-amber-100 text-amber-700 flex items-center justify-center">
-            <svg width="22" height="22" viewBox="0 0 16 16" fill="none">
-              <path
-                d="M3 8l3 3 7-7"
-                stroke="currentColor"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
-            </svg>
-          </div>
-          <div>
-            <h1 className="font-display text-2xl font-medium tracking-tight">Admin</h1>
-            <div className="text-xs text-ink-muted">
-              Approve posts, create events, and manage the parish calendar.
-            </div>
-          </div>
-        </div>
+  const resources = buildMemberResources(
+    (resourcesData ?? [])
+      .map(row => {
+        const resource = firstRelation(
+          row.resource as { key: string; label: string; sort_order: number } | { key: string; label: string; sort_order: number }[],
+        );
+        if (!resource) return null;
+        return {
+          key: resource.key,
+          label: resource.label,
+          url: row.url as string | null,
+          enabled: row.enabled as boolean,
+        };
+      })
+      .filter((r): r is { key: string; label: string; url: string | null; enabled: boolean } => r !== null),
+  );
 
-        <AdminPanel
-          pending={pending}
-          groups={groups}
-          events={events}
-          calendar={calendar}
-          currentUserId={session.user_id}
-          orgId={session.org_id!}
-          canManageCalendar={isHeadOrOwner}
-        />
-      </div>
-    </div>
+  const messages: AdminMessage[] = (messagesData ?? []).map(row => {
+    const fromUser = firstRelation(
+      row.from_user as { id: string; name: string; initials: string } | { id: string; name: string; initials: string }[],
+    );
+    const group = firstRelation(row.group as { name: string } | { name: string }[]);
+    return {
+      id: row.id as string,
+      body: row.body as string,
+      created_at: row.created_at as string,
+      read_at: (row.read_at as string | null) ?? null,
+      group_id: row.group_id as string | null,
+      group_name: group?.name ?? null,
+      from_user: fromUser,
+    };
+  });
+
+  return (
+    <AdminPortal
+      session={session}
+      orgCity={(org?.city as string | null) ?? null}
+      groups={groups}
+      resources={resources}
+      pending={pending}
+      events={events}
+      calendar={calendar}
+      messages={messages}
+      canManageCalendar={isHeadOrOwner}
+    />
   );
 }

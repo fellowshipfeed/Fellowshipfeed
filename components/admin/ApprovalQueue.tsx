@@ -15,9 +15,11 @@ function defaultSignupTitle(post: PendingPost) {
 export function ApprovalQueue({
   initialPending,
   currentUserId,
+  onPendingChange,
 }: {
   initialPending: PendingPost[];
   currentUserId: string;
+  onPendingChange?: (pending: PendingPost[]) => void;
 }) {
   const [pending, setPending] = useState<PendingPost[]>(initialPending);
   const [message, setMessage] = useState('');
@@ -53,6 +55,11 @@ export function ApprovalQueue({
     );
   }
 
+  function updatePending(next: PendingPost[]) {
+    setPending(next);
+    onPendingChange?.(next);
+  }
+
   async function approve(post: PendingPost) {
     const signupConfig = buildConfig(post);
     const supabase = createClient();
@@ -74,7 +81,7 @@ export function ApprovalQueue({
       admin_id: currentUserId,
       action: 'approved',
     });
-    setPending(p => p.filter(x => x.id !== post.id));
+    updatePending(pending.filter(x => x.id !== post.id));
     setMessage(signupConfig ? 'Approved with sign-up enabled.' : 'Approved — now live in the feed.');
     setTimeout(() => setMessage(''), 3000);
   }
@@ -90,7 +97,7 @@ export function ApprovalQueue({
       action: 'rejected',
       reason,
     });
-    setPending(p => p.filter(x => x.id !== id));
+    updatePending(pending.filter(x => x.id !== id));
     setMessage('Rejected — member has been notified.');
     setTimeout(() => setMessage(''), 3000);
   }
