@@ -593,7 +593,10 @@ create policy org_resources_modify on org_resources for all using (
 -- (Simplified — in practice you'd batch & throttle this. Keep it here as a
 -- starting point.)
 create or replace function notify_on_post_approved() returns trigger
-language plpgsql as $$
+language plpgsql
+security definer
+set search_path = public
+as $$
 begin
   if new.status = 'approved' and (old.status is null or old.status <> 'approved') then
     -- Notify mentioned users

@@ -15,6 +15,7 @@ Your full database schema lives here — it was built in Claude but never commit
 | `07_post_attachments_storage.sql` | Storage bucket + upload policies for post files |
 | `08_admin_events_signups.sql` | Org calendar URLs, post sign-up config, `post_signups` table |
 | `10_signup_config_column.sql` | Adds `signup_config` only (if approval fails with column not found) |
+| `11_fix_notification_trigger_rls.sql` | Fix approval failing on notifications RLS policy |
 
 > **Note:** `01_schema.sql` was a temporary simplified schema created during deployment troubleshooting. Use the `anchor_*.sql` files instead.
 
