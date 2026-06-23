@@ -7,7 +7,7 @@ export function buildSidebarGroups(
 ): FeedGroup[] {
   const isHeadOrOwner = session.primary_role === 'head' || session.primary_role === 'owner';
   const adminGroupIds = new Set(session.admin_group_ids ?? []);
-  const map = new Map(memberGroups.map(g => [g.id, { ...g, joined: true as const }]));
+  const map = new Map<string, FeedGroup>(memberGroups.map(g => [g.id, { ...g, joined: true }]));
 
   if (isHeadOrOwner) {
     for (const g of allGroups) {
