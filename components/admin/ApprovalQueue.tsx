@@ -63,15 +63,36 @@ export function ApprovalQueue({
   async function approve(post: PendingPost) {
     const signupConfig = buildConfig(post);
     const supabase = createClient();
-    const { error } = await supabase
-      .from('posts')
-      .update({
-        status: 'approved',
-        approved_at: new Date().toISOString(),
-        approved_by: currentUserId,
-        signup_config: signupConfig,
-      })
-      .eq('id', post.id);
+    const update: Record<string, unknown> = {
+      status: 'approved',
+      approved_at: new Date().toISOString(),
+      approved_by: currentUserId,
+    };
+    if (signupConfig) {
+      update.signup_config = signupConfig;
+    }
+
+    let { error } = await supabase.from('posts').update(update).eq('id', post.id);
+
+    if (error && signupConfig && error.message.includes('signup_config')) {
+      const { signup_config: _removed, ...withoutSignup } = update;
+      const retry = await supabase.from('posts').update(withoutSignup).eq('id', post.id);
+      error = retry.error;
+      if (!error) {
+        setMessage(
+          'Approved — sign-ups need migration 08_admin_events_signups.sql in Supabase. Post is live without sign-up.',
+        );
+        updatePending(pending.filter(x => x.id !== post.id));
+        setTimeout(() => setMessage(''), 5000);
+        await supabase.from('moderation_log').insert({
+          post_id: post.id,
+          admin_id: currentUserId,
+          action: 'approved',
+        });
+        return;
+      }
+    }
+
     if (error) {
       setMessage('Error: ' + error.message);
       return;
@@ -90,7 +111,7 @@ export function ApprovalQueue({
     const reason = window.prompt('Reason (the member will see this — be kind):');
     if (reason === null) return;
     const supabase = createClient();
-    await supabase.from('posts').update({ status: 'rejected', signup_config: null }).eq('id', id);
+    await supabase.from('posts').update({ status: 'rejected' }).eq('id', id);
     await supabase.from('moderation_log').insert({
       post_id: id,
       admin_id: currentUserId,

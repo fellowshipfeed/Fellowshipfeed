@@ -94,7 +94,8 @@ create table posts (
   pinned          boolean not null default false,
   created_at      timestamptz not null default now(),
   approved_at     timestamptz,
-  approved_by     uuid references users(id) on delete set null
+  approved_by     uuid references users(id) on delete set null,
+  signup_config   jsonb
 );
 
 create index posts_group_status_idx on posts (group_id, status, created_at desc);
