@@ -1,6 +1,6 @@
 'use client';
 
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import type { AdminView, FeedGroup, OrgResource } from '@/lib/types';
 import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { GroupDot } from '@/components/member/GroupDot';
@@ -45,12 +45,21 @@ export function AdminSidebar({
   canManageCalendar,
   onViewChange,
 }: Props) {
+  const router = useRouter();
+
   const navClass = (active: boolean) =>
     `w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] border-l-[3px] transition-colors ${
       active
         ? 'bg-accent-soft text-accent border-accent font-medium'
         : 'text-ink-soft border-transparent hover:bg-cream-soft hover:text-ink'
     }`;
+
+  const groupRowClass =
+    'w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors cursor-pointer text-left';
+
+  function openGroupFeed(groupId: string) {
+    router.push(`/feed?group=${groupId}`);
+  }
 
   return (
     <aside className="lg:sticky lg:top-[84px] lg:self-start space-y-3.5">
@@ -59,9 +68,10 @@ export function AdminSidebar({
           <div className="text-[10px] uppercase tracking-[0.09em] text-ink-muted font-semibold px-4 pt-3.5 pb-2">
             Groups you manage
           </div>
-          <Link
-            href="/feed"
-            className="w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors"
+          <button
+            type="button"
+            onClick={() => router.push('/feed')}
+            className={groupRowClass}
           >
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path
@@ -72,24 +82,25 @@ export function AdminSidebar({
               />
             </svg>
             My Feed
-          </Link>
+          </button>
           {groups.map(g => {
             const palette = getGroupStyleFromGroup(g);
             return (
-              <Link
+              <button
                 key={g.id}
-                href={`/feed?group=${g.id}`}
-                className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors group"
+                type="button"
+                onClick={() => openGroupFeed(g.id)}
+                className={groupRowClass}
               >
                 <GroupDot slug={g.slug} color={g.color} size="md" />
-                <span className="flex-1 text-left truncate">{g.name}</span>
+                <span className="flex-1 truncate">{g.name}</span>
                 <span
-                  className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded opacity-80 group-hover:opacity-100"
+                  className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
                   style={{ backgroundColor: palette.soft, color: palette.hex }}
                 >
-                  Feed
+                  Feed →
                 </span>
-              </Link>
+              </button>
             );
           })}
         </div>

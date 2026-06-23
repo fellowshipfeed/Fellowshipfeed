@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { redirect } from 'next/navigation';
 import { createClient } from '@/lib/supabase-server';
 import { MemberPortal } from '@/components/member/MemberPortal';
@@ -267,19 +268,21 @@ export default async function FeedPage({
   };
 
   return (
-    <MemberPortal
-      session={session}
-      orgCity={(org?.city as string | null) ?? null}
-      groups={groups}
-      allGroups={allGroups}
-      resources={resources}
-      events={events}
-      calendar={calendar}
-      headUserId={headUserId}
-      approvedPosts={approvedPosts}
-      pendingPosts={pendingPosts}
-      myPosts={myPosts}
-      initialGroupId={initialGroupId ?? null}
-    />
+    <Suspense fallback={<div className="min-h-screen bg-cream" />}>
+      <MemberPortal
+        session={session}
+        orgCity={(org?.city as string | null) ?? null}
+        groups={groups}
+        allGroups={allGroups}
+        resources={resources}
+        events={events}
+        calendar={calendar}
+        headUserId={headUserId}
+        approvedPosts={approvedPosts}
+        pendingPosts={pendingPosts}
+        myPosts={myPosts}
+        initialGroupId={initialGroupId ?? null}
+      />
+    </Suspense>
   );
 }
