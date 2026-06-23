@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import type { FeedGroup } from '@/lib/types';
 import { getGroupStyleFromGroup } from '@/lib/group-styles';
-import { getInitials } from '@/lib/format';
 import { GroupDot } from './GroupDot';
 
 type HeaderVariant = 'group' | 'pending' | 'yourPosts' | 'saved' | 'explore';
@@ -67,11 +66,6 @@ export function FeedHeader({ variant, group, onLeaveGroup, onAskAdmin }: Props) 
         className="bg-white border border-line rounded-xl p-5 sm:p-6 mb-4 flex gap-4 items-center"
         style={{ borderLeftWidth: 4, borderLeftColor: palette.hex }}
       >
-        <div
-          className={`w-[52px] h-[52px] rounded-[10px] flex items-center justify-center font-display text-xl font-medium shrink-0 ${palette.icon}`}
-        >
-          {getInitials(group.name, 2)}
-        </div>
         <div className="flex-1 min-w-0">
           <h1 className="font-display text-[22px] font-medium tracking-tight flex items-center gap-2">
             <GroupDot slug={group.slug} color={group.color} size="md" />
