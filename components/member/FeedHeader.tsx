@@ -9,6 +9,7 @@ type HeaderVariant = 'group' | 'pending' | 'yourPosts' | 'saved' | 'explore';
 type Props = {
   variant: HeaderVariant;
   group?: FeedGroup | null;
+  onLeaveGroup?: () => void;
 };
 
 const icons: Record<Exclude<HeaderVariant, 'group'>, { bg: string; content: ReactNode }> = {
@@ -57,7 +58,7 @@ const copy: Record<HeaderVariant, { title: string; meta: string }> = {
   explore: { title: 'Explore groups', meta: 'Browse ministries and join the ones that fit you' },
 };
 
-export function FeedHeader({ variant, group }: Props) {
+export function FeedHeader({ variant, group, onLeaveGroup }: Props) {
   if (variant === 'group' && group) {
     const palette = getGroupStyleFromGroup(group);
     return (
@@ -99,6 +100,15 @@ export function FeedHeader({ variant, group }: Props) {
           </svg>
           Ask admin
         </button>
+        {onLeaveGroup && (
+          <button
+            type="button"
+            onClick={onLeaveGroup}
+            className="hidden sm:flex items-center gap-1.5 bg-white border border-line px-3.5 py-2 rounded-md text-xs font-medium text-ink-soft hover:text-red-700 hover:border-red-300 hover:bg-red-50"
+          >
+            Leave group
+          </button>
+        )}
       </div>
     );
   }

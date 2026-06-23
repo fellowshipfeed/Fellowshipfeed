@@ -134,6 +134,41 @@ export function MemberPortal({
     router.refresh();
   }
 
+  async function leaveGroup(groupId: string) {
+    const groupName = allGroups.find(g => g.id === groupId)?.name ?? 'this group';
+    if (
+      !window.confirm(
+        `Leave ${groupName}? You will be unsubscribed and won't see its posts in your feed anymore.`,
+      )
+    ) {
+      return;
+    }
+
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('group_memberships')
+      .delete()
+      .eq('user_id', session.user_id)
+      .eq('group_id', groupId);
+
+    if (error) throw new Error(error.message);
+
+    setGroups(prev => prev.filter(g => g.id !== groupId));
+    setAllGroups(prev =>
+      prev.map(g =>
+        g.id === groupId
+          ? { ...g, joined: false, member_count: Math.max(0, (g.member_count ?? 1) - 1) }
+          : g,
+      ),
+    );
+
+    if (view === 'group' && activeGroupId === groupId) {
+      handleViewChange('explore');
+    }
+
+    router.refresh();
+  }
+
   async function joinGroup(groupId: string) {
     const supabase = createClient();
     const { error } = await supabase.from('group_memberships').insert({
@@ -222,12 +257,19 @@ export function MemberPortal({
               <ExploreGroups
                 groups={allGroups}
                 onJoin={joinGroup}
+                onLeave={leaveGroup}
                 onOpenGroup={id => handleViewChange('group', id)}
               />
             </>
           ) : (
             <>
-              {view === 'group' && activeGroup && <FeedHeader variant="group" group={activeGroup} />}
+              {view === 'group' && activeGroup && (
+                <FeedHeader
+                  variant="group"
+                  group={activeGroup}
+                  onLeaveGroup={() => leaveGroup(activeGroup.id)}
+                />
+              )}
               {view === 'pending' && <FeedHeader variant="pending" />}
               {view === 'yourPosts' && <FeedHeader variant="yourPosts" />}
               {view === 'saved' && <FeedHeader variant="saved" />}
