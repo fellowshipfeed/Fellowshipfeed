@@ -14,7 +14,7 @@ type Props = {
 export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: Props) {
   const [body, setBody] = useState('');
   const [selected, setSelected] = useState<Set<string>>(
-    () => new Set(fixedGroupId ? [fixedGroupId] : groups.map(g => g.id)),
+    () => new Set(fixedGroupId ? [fixedGroupId] : []),
   );
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState('');
@@ -23,11 +23,8 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
     if (fixedGroupId) return;
     setSelected(prev => {
       const next = new Set(prev);
-      if (next.has(id)) {
-        if (next.size > 1) next.delete(id);
-      } else {
-        next.add(id);
-      }
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
       return next;
     });
   }
@@ -39,6 +36,7 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
     try {
       await onSubmit(body.trim(), Array.from(selected));
       setBody('');
+      setSelected(fixedGroupId ? new Set([fixedGroupId]) : new Set());
       setMessage('Submitted for review — your group admin will see it shortly.');
       setTimeout(() => setMessage(''), 4000);
     } catch (err) {
