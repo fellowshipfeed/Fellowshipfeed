@@ -1,6 +1,5 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
 import type { AdminView, FeedGroup, OrgResource } from '@/lib/types';
 import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { GroupDot } from '@/components/member/GroupDot';
@@ -45,8 +44,6 @@ export function AdminSidebar({
   canManageCalendar,
   onViewChange,
 }: Props) {
-  const router = useRouter();
-
   const navClass = (active: boolean) =>
     `w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] border-l-[3px] transition-colors ${
       active
@@ -55,24 +52,16 @@ export function AdminSidebar({
     }`;
 
   const groupRowClass =
-    'w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors cursor-pointer text-left';
-
-  function openGroupFeed(groupId: string) {
-    router.push(`/feed?group=${groupId}`);
-  }
+    'w-full flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft border-l-[3px] border-transparent hover:bg-cream-soft hover:text-ink transition-colors no-underline';
 
   return (
-    <aside className="lg:sticky lg:top-[84px] lg:self-start space-y-3.5">
+    <aside className="relative z-10 lg:sticky lg:top-[84px] lg:self-start space-y-3.5">
       {groups.length > 0 && (
         <div className="bg-white border border-line rounded-xl overflow-hidden">
           <div className="text-[10px] uppercase tracking-[0.09em] text-ink-muted font-semibold px-4 pt-3.5 pb-2">
             Groups you manage
           </div>
-          <button
-            type="button"
-            onClick={() => router.push('/feed')}
-            className={groupRowClass}
-          >
+          <a href="/feed" className={groupRowClass}>
             <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
               <path
                 d="M2 8l6-5 6 5v6a1 1 0 01-1 1H3a1 1 0 01-1-1V8z"
@@ -82,25 +71,20 @@ export function AdminSidebar({
               />
             </svg>
             My Feed
-          </button>
+          </a>
           {groups.map(g => {
             const palette = getGroupStyleFromGroup(g);
             return (
-              <button
-                key={g.id}
-                type="button"
-                onClick={() => openGroupFeed(g.id)}
-                className={groupRowClass}
-              >
+              <a key={g.id} href={`/feed/group/${g.id}`} className={groupRowClass}>
                 <GroupDot slug={g.slug} color={g.color} size="md" />
-                <span className="flex-1 truncate">{g.name}</span>
+                <span className="flex-1 truncate text-ink-soft">{g.name}</span>
                 <span
                   className="text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded shrink-0"
                   style={{ backgroundColor: palette.soft, color: palette.hex }}
                 >
-                  Feed →
+                  View feed
                 </span>
-              </button>
+              </a>
             );
           })}
         </div>
@@ -176,7 +160,7 @@ export function AdminSidebar({
               href={r.url ?? '#'}
               target="_blank"
               rel="noopener noreferrer"
-              className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft hover:bg-cream-soft hover:text-ink border-l-[3px] border-transparent"
+              className="flex items-center gap-2.5 px-4 py-2.5 text-[13px] text-ink-soft hover:bg-cream-soft hover:text-ink border-l-[3px] border-transparent no-underline"
             >
               <ResourceIcon resourceKey={r.key} />
               <span className="flex-1 text-left">{r.label}</span>

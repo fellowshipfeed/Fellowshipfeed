@@ -4,17 +4,17 @@ import { loadFeedPage } from '@/lib/load-feed-page';
 
 export const dynamic = 'force-dynamic';
 
-export default async function FeedPage({
-  searchParams,
+export default async function GroupFeedPage({
+  params,
 }: {
-  searchParams: Promise<{ group?: string }>;
+  params: Promise<{ groupId: string }>;
 }) {
-  const { group: initialGroupId } = await searchParams;
+  const { groupId } = await params;
   const data = await loadFeedPage();
 
   return (
     <Suspense fallback={<div className="min-h-screen bg-cream" />}>
-      <MemberPortal {...data} initialGroupId={initialGroupId ?? null} />
+      <MemberPortal {...data} initialGroupId={groupId} />
     </Suspense>
   );
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { createClient } from '@/lib/supabase-browser';
 import type { ComposerAttachment } from '@/lib/composer-attachments';
 import { saveAttachmentsForPost } from '@/lib/composer-attachments';
@@ -58,8 +58,14 @@ export function MemberPortal({
   initialGroupId,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const bootGroup = resolveGroup(initialGroupId, initialGroups, initialAllGroups);
+  const groupFromPath = pathname.startsWith('/feed/group/')
+    ? pathname.replace('/feed/group/', '').split('/')[0]
+    : null;
+  const groupFromQuery = searchParams.get('group');
+  const resolvedInitialGroupId = initialGroupId ?? groupFromPath ?? groupFromQuery;
+  const bootGroup = resolveGroup(resolvedInitialGroupId, initialGroups, initialAllGroups);
   const [view, setView] = useState<FeedView>(bootGroup ? 'group' : 'home');
   const [activeGroupId, setActiveGroupId] = useState<string | null>(bootGroup?.id ?? null);
   const [groups, setGroups] = useState(initialGroups);
@@ -97,14 +103,14 @@ export function MemberPortal({
     isHeadOrOwner || (activeGroupId != null && adminGroupIds.has(activeGroupId));
 
   useEffect(() => {
-    const groupId = searchParams.get('group');
+    const groupId = groupFromPath ?? searchParams.get('group');
     if (!groupId) return;
     const g = resolveGroup(groupId, groups, allGroups);
     if (g) {
       setView('group');
       setActiveGroupId(g.id);
     }
-  }, [searchParams, groups, allGroups]);
+  }, [groupFromPath, searchParams, groups, allGroups]);
 
   const savedPosts = useMemo(() => approvedPosts.filter(p => p.saved), [approvedPosts]);
   const savedCount = savedPosts.length;
@@ -145,9 +151,9 @@ export function MemberPortal({
     setView(next);
     setActiveGroupId(groupId ?? null);
     if (next === 'group' && groupId) {
-      router.replace(`/feed?group=${groupId}`, { scroll: false });
+      router.push(`/feed/group/${groupId}`);
     } else {
-      router.replace('/feed', { scroll: false });
+      router.push('/feed');
     }
   }
 
