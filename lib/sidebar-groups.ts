@@ -5,19 +5,12 @@ export function buildSidebarGroups(
   allGroups: FeedGroup[],
   session: Pick<Session, 'primary_role' | 'admin_group_ids'>,
 ): FeedGroup[] {
-  const isHeadOrOwner = session.primary_role === 'head' || session.primary_role === 'owner';
   const adminGroupIds = new Set(session.admin_group_ids ?? []);
   const map = new Map<string, FeedGroup>(memberGroups.map(g => [g.id, { ...g, joined: true }]));
 
-  if (isHeadOrOwner) {
-    for (const g of allGroups) {
-      if (!map.has(g.id)) map.set(g.id, { ...g, joined: false });
-    }
-  } else if (session.primary_role === 'group_admin') {
-    for (const g of allGroups) {
-      if (adminGroupIds.has(g.id) && !map.has(g.id)) {
-        map.set(g.id, { ...g, joined: false });
-      }
+  for (const g of allGroups) {
+    if (adminGroupIds.has(g.id) && !map.has(g.id)) {
+      map.set(g.id, { ...g, joined: false });
     }
   }
 
@@ -25,12 +18,8 @@ export function buildSidebarGroups(
 }
 
 export function buildAdminBadgeIds(
-  sidebarGroups: FeedGroup[],
-  session: Pick<Session, 'primary_role' | 'admin_group_ids'>,
+  _sidebarGroups: FeedGroup[],
+  session: Pick<Session, 'admin_group_ids'>,
 ): Set<string> {
-  const isHeadOrOwner = session.primary_role === 'head' || session.primary_role === 'owner';
-  if (isHeadOrOwner) {
-    return new Set(sidebarGroups.map(g => g.id));
-  }
   return new Set(session.admin_group_ids ?? []);
 }

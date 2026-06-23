@@ -10,6 +10,7 @@ type Props = {
   group?: FeedGroup | null;
   onLeaveGroup?: () => void;
   onAskAdmin?: () => void;
+  showAdminBadge?: boolean;
 };
 
 const icons: Record<Exclude<HeaderVariant, 'group'>, { bg: string; content: ReactNode }> = {
@@ -58,7 +59,7 @@ const copy: Record<HeaderVariant, { title: string; meta: string }> = {
   explore: { title: 'Explore groups', meta: 'Browse ministries and join the ones that fit you' },
 };
 
-export function FeedHeader({ variant, group, onLeaveGroup, onAskAdmin }: Props) {
+export function FeedHeader({ variant, group, onLeaveGroup, onAskAdmin, showAdminBadge }: Props) {
   if (variant === 'group' && group) {
     const palette = getGroupStyleFromGroup(group);
     return (
@@ -67,13 +68,21 @@ export function FeedHeader({ variant, group, onLeaveGroup, onAskAdmin }: Props) 
         style={{ borderLeftWidth: 4, borderLeftColor: palette.hex }}
       >
         <div className="flex-1 min-w-0">
-          <h1 className="font-display text-[22px] font-medium tracking-tight flex items-center gap-2">
+          <h1 className="font-display text-[22px] font-medium tracking-tight flex items-center gap-2 flex-wrap">
             <GroupDot slug={group.slug} color={group.color} size="md" />
             {group.name}
+            {showAdminBadge && (
+              <span
+                className="text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded"
+                style={{ backgroundColor: palette.soft, color: palette.hex }}
+              >
+                Admin
+              </span>
+            )}
           </h1>
           <p className="text-xs text-ink-muted mt-1 flex items-center gap-3">
             <span>{group.member_count ?? 0} members</span>
-            {group.admin_name && (
+            {group.admin_name && !showAdminBadge && (
               <>
                 <span className="text-line">·</span>
                 <span>Admin: {group.admin_name}</span>
@@ -81,21 +90,23 @@ export function FeedHeader({ variant, group, onLeaveGroup, onAskAdmin }: Props) 
             )}
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onAskAdmin}
-          className="flex items-center gap-1.5 bg-cream-soft border border-line px-3.5 py-2 rounded-md text-xs font-medium text-ink hover:bg-line-soft shrink-0"
-        >
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
-            <path
-              d="M2 4a1 1 0 011-1h8a1 1 0 011 1v5a1 1 0 01-1 1H5l-2 2v-2H3a1 1 0 01-1-1V4z"
-              stroke="currentColor"
-              strokeWidth="1.3"
-              strokeLinejoin="round"
-            />
-          </svg>
-          Ask admin
-        </button>
+        {onAskAdmin && (
+          <button
+            type="button"
+            onClick={onAskAdmin}
+            className="flex items-center gap-1.5 bg-cream-soft border border-line px-3.5 py-2 rounded-md text-xs font-medium text-ink hover:bg-line-soft shrink-0"
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+              <path
+                d="M2 4a1 1 0 011-1h8a1 1 0 011 1v5a1 1 0 01-1 1H5l-2 2v-2H3a1 1 0 01-1-1V4z"
+                stroke="currentColor"
+                strokeWidth="1.3"
+                strokeLinejoin="round"
+              />
+            </svg>
+            Ask admin
+          </button>
+        )}
         {onLeaveGroup && (
           <button
             type="button"

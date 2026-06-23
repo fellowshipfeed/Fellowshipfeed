@@ -99,19 +99,35 @@ export function MemberPortal({
     isHeadOrOwner || (activeGroupId != null && adminGroupIds.has(activeGroupId));
 
   useEffect(() => {
+    setGroups(initialGroups);
+    setAllGroups(initialAllGroups);
+    setApprovedPosts(initialApproved);
+    setPending(initialPending);
+    setMyPosts(initialMyPosts);
+  }, [initialGroups, initialAllGroups, initialApproved, initialPending, initialMyPosts]);
+
+  useEffect(() => {
     if (searchParams.get('view') === 'explore') {
       setView('explore');
       setActiveGroupId(null);
       return;
     }
+
     const groupId = groupFromPath ?? searchParams.get('group');
-    if (!groupId) return;
+    if (!groupId) {
+      if (pathname === '/feed') {
+        setView('home');
+        setActiveGroupId(null);
+      }
+      return;
+    }
+
     const g = resolveGroup(groupId, groups, allGroups);
     if (g) {
       setView('group');
       setActiveGroupId(g.id);
     }
-  }, [groupFromPath, searchParams, groups, allGroups]);
+  }, [pathname, groupFromPath, searchParams, groups, allGroups]);
 
   const savedPosts = useMemo(() => approvedPosts.filter(p => p.saved), [approvedPosts]);
   const savedCount = savedPosts.length;
@@ -162,11 +178,11 @@ export function MemberPortal({
     setView(next);
     setActiveGroupId(groupId ?? null);
     if (next === 'group' && groupId) {
-      router.push(`/feed/group/${groupId}`);
+      router.push(`/feed/group/${groupId}`, { scroll: false });
     } else if (next === 'explore') {
-      router.push('/feed?view=explore');
+      router.push('/feed?view=explore', { scroll: false });
     } else {
-      router.push('/feed');
+      router.push('/feed', { scroll: false });
     }
   }
 
@@ -396,23 +412,11 @@ export function MemberPortal({
             </>
           ) : (
             <>
-              {view === 'group' && canModerateActiveGroup && activeGroup?.joined === false && (
-                <div className="bg-accent-soft border border-accent/20 rounded-xl px-4 py-3 mb-4 flex items-center justify-between gap-3 text-[13px] text-accent">
-                  <span>Viewing this group as admin</span>
-                  <button
-                    type="button"
-                    onClick={() => router.push('/admin')}
-                    className="text-xs font-medium underline shrink-0"
-                  >
-                    Back to admin
-                  </button>
-                </div>
-              )}
-
               {view === 'group' && activeGroup && (
                 <FeedHeader
                   variant="group"
                   group={activeGroup}
+                  showAdminBadge={canModerateActiveGroup}
                   onLeaveGroup={
                     activeGroup.joined !== false ? () => leaveGroup(activeGroup.id) : undefined
                   }
@@ -429,7 +433,9 @@ export function MemberPortal({
                 <UpcomingEvents events={visibleEvents} calendar={calendar} showGroupTag={view === 'home'} />
               )}
 
-              {pending.length > 0 && (view === 'home' || view === 'group') && (
+              {pending.length > 0 &&
+                (view === 'home' || view === 'group') &&
+                !(view === 'group' && canModerateActiveGroup) && (
                 <div className="bg-pending-soft border border-pending rounded-xl px-4 py-3 mb-4 flex items-center gap-3 text-[13px]">
                   <svg width="18" height="18" viewBox="0 0 16 16" fill="none" className="text-pending shrink-0" aria-hidden="true">
                     <circle cx="8" cy="8" r="6" stroke="currentColor" strokeWidth="1.4" />
