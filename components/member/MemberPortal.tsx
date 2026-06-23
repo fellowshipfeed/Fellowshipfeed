@@ -13,6 +13,7 @@ import { UpcomingEvents } from './UpcomingEvents';
 import { PostComposer } from './PostComposer';
 import { FeedHeader } from './FeedHeader';
 import { ExploreGroups } from './ExploreGroups';
+import { AskAdminModal } from './AskAdminModal';
 
 type Props = {
   session: Session;
@@ -25,6 +26,7 @@ type Props = {
   approvedPosts: FeedPost[];
   pendingPosts: FeedPost[];
   myPosts: FeedPost[];
+  headUserId: string | null;
 };
 
 function patchPost(posts: FeedPost[], postId: string, patch: Partial<FeedPost>): FeedPost[] {
@@ -42,6 +44,7 @@ export function MemberPortal({
   approvedPosts: initialApproved,
   pendingPosts: initialPending,
   myPosts: initialMyPosts,
+  headUserId,
 }: Props) {
   const router = useRouter();
   const [view, setView] = useState<FeedView>('home');
@@ -51,6 +54,7 @@ export function MemberPortal({
   const [approvedPosts, setApprovedPosts] = useState(initialApproved);
   const [pending, setPending] = useState(initialPending);
   const [myPosts, setMyPosts] = useState(initialMyPosts);
+  const [askAdminGroup, setAskAdminGroup] = useState<FeedGroup | null>(null);
 
   const activeGroup = groups.find(g => g.id === activeGroupId) ?? null;
   const memberGroupIds = useMemo(() => new Set(groups.map(g => g.id)), [groups]);
@@ -97,6 +101,21 @@ export function MemberPortal({
     setApprovedPosts(prev => patchPost(prev, postId, patch));
     setMyPosts(prev => patchPost(prev, postId, patch));
   }, []);
+
+  async function editPendingPost(postId: string, body: string) {
+    const supabase = createClient();
+    const { error } = await supabase
+      .from('posts')
+      .update({ body })
+      .eq('id', postId)
+      .eq('author_id', session.user_id)
+      .eq('status', 'pending');
+    if (error) throw new Error(error.message);
+
+    const patch = { body };
+    setPending(prev => patchPost(prev, postId, patch));
+    setMyPosts(prev => patchPost(prev, postId, patch));
+  }
 
   async function cancelPendingPost(postId: string) {
     if (!window.confirm('Cancel this post? It will be removed from the review queue.')) return;
@@ -276,6 +295,7 @@ export function MemberPortal({
                   variant="group"
                   group={activeGroup}
                   onLeaveGroup={() => leaveGroup(activeGroup.id)}
+                  onAskAdmin={() => setAskAdminGroup(activeGroup)}
                 />
               )}
               {view === 'pending' && <FeedHeader variant="pending" />}
@@ -329,6 +349,7 @@ export function MemberPortal({
                     orgName={session.org_name}
                     showYou={view === 'pending' || view === 'yourPosts'}
                     onCancel={view === 'pending' ? cancelPendingPost : undefined}
+                    onEdit={view === 'pending' ? editPendingPost : undefined}
                     onToggleReaction={view !== 'pending' ? toggleReaction : undefined}
                     onToggleSave={view !== 'pending' ? toggleSave : undefined}
                     userId={session.user_id}
@@ -340,6 +361,18 @@ export function MemberPortal({
           )}
         </main>
       </div>
+
+      {askAdminGroup && (
+        <AskAdminModal
+          groupId={askAdminGroup.id}
+          groupName={askAdminGroup.name}
+          adminName={askAdminGroup.admin_name ?? null}
+          adminUserId={askAdminGroup.admin_user_id ?? null}
+          headUserId={headUserId}
+          currentUserId={session.user_id}
+          onClose={() => setAskAdminGroup(null)}
+        />
+      )}
     </div>
   );
 }

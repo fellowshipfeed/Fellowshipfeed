@@ -4,7 +4,7 @@ import { MemberPortal } from '@/components/member/MemberPortal';
 import { parseSignupConfig } from '@/lib/signup-fields';
 import type { FeedEvent, FeedGroup, FeedPost, OrgCalendarSettings, OrgResource, Session } from '@/lib/types';
 import { firstRelation } from '@/lib/supabase-helpers';
-import { filterOrgResources } from '@/lib/org-resources';
+import { buildMemberResources } from '@/lib/org-resources';
 import { EMPTY_REACTIONS, aggregateReactions } from '@/lib/post-reactions';
 
 export const dynamic = 'force-dynamic';
@@ -80,6 +80,7 @@ export default async function FeedPage() {
     { data: eventsData },
     { data: signupsData },
     { data: adminRolesData },
+    { data: headRoleData },
     { data: membershipCounts },
   ] = await Promise.all([
     supabase.from('orgs').select('city, google_calendar_url, calendar_ics_url').eq('id', session.org_id).single(),
@@ -107,8 +108,7 @@ export default async function FeedPage() {
     supabase
       .from('org_resources')
       .select('url, enabled, resource:standard_resources(key, label, sort_order)')
-      .eq('org_id', session.org_id)
-      .eq('enabled', true),
+      .eq('org_id', session.org_id),
     supabase
       .from('events')
       .select('id, title, starts_at, location, group_id, group:groups(id, name, slug)')
@@ -122,6 +122,13 @@ export default async function FeedPage() {
       .select('user_id, group_id, user:users(name)')
       .eq('role_type', 'group_admin')
       .eq('org_id', session.org_id),
+    supabase
+      .from('roles')
+      .select('user_id')
+      .eq('role_type', 'head')
+      .eq('org_id', session.org_id)
+      .limit(1)
+      .maybeSingle(),
     supabase.from('group_memberships').select('group_id'),
   ]);
 
@@ -158,16 +165,18 @@ export default async function FeedPage() {
   );
 
   const adminPairs = new Set<string>();
-  const adminByGroup = new Map<string, string>();
+  const adminByGroup = new Map<string, { name: string; userId: string }>();
   for (const row of adminRolesData ?? []) {
     const userId = row.user_id as string;
     const groupId = row.group_id as string;
     adminPairs.add(`${userId}:${groupId}`);
     const user = firstRelation(row.user as { name: string } | { name: string }[]);
     if (user && !adminByGroup.has(groupId)) {
-      adminByGroup.set(groupId, user.name);
+      adminByGroup.set(groupId, { name: user.name, userId });
     }
   }
+
+  const headUserId = (headRoleData?.user_id as string | undefined) ?? null;
 
   const countByGroup = new Map<string, number>();
   for (const row of membershipCounts ?? []) {
@@ -176,19 +185,27 @@ export default async function FeedPage() {
   }
 
   const joinedSet = new Set(memberGroupIds);
-  const groups: FeedGroup[] = ((groupsData ?? []) as FeedGroup[]).map(g => ({
-    ...g,
-    member_count: countByGroup.get(g.id) ?? 0,
-    admin_name: adminByGroup.get(g.id) ?? null,
-    joined: true,
-  }));
+  const groups: FeedGroup[] = ((groupsData ?? []) as FeedGroup[]).map(g => {
+    const admin = adminByGroup.get(g.id);
+    return {
+      ...g,
+      member_count: countByGroup.get(g.id) ?? 0,
+      admin_name: admin?.name ?? null,
+      admin_user_id: admin?.userId ?? null,
+      joined: true,
+    };
+  });
 
-  const allGroups: FeedGroup[] = ((allGroupsData ?? []) as FeedGroup[]).map(g => ({
-    ...g,
-    member_count: countByGroup.get(g.id) ?? 0,
-    admin_name: adminByGroup.get(g.id) ?? null,
-    joined: joinedSet.has(g.id),
-  }));
+  const allGroups: FeedGroup[] = ((allGroupsData ?? []) as FeedGroup[]).map(g => {
+    const admin = adminByGroup.get(g.id);
+    return {
+      ...g,
+      member_count: countByGroup.get(g.id) ?? 0,
+      admin_name: admin?.name ?? null,
+      admin_user_id: admin?.userId ?? null,
+      joined: joinedSet.has(g.id),
+    };
+  });
 
   const rsvpEventIds = new Set((signupsData ?? []).map(s => s.event_id as string));
   const events: FeedEvent[] = (eventsData ?? []).map(row => {
@@ -207,15 +224,22 @@ export default async function FeedPage() {
     };
   });
 
-  const resources: OrgResource[] = (resourcesData ?? [])
-    .map(row => {
-      const resource = firstRelation(
-        row.resource as { key: string; label: string; sort_order: number } | { key: string; label: string; sort_order: number }[],
-      );
-      if (!resource) return null;
-      return { key: resource.key, label: resource.label, url: row.url as string | null };
-    })
-    .filter((r): r is OrgResource => r !== null);
+  const resources: OrgResource[] = buildMemberResources(
+    (resourcesData ?? [])
+      .map(row => {
+        const resource = firstRelation(
+          row.resource as { key: string; label: string; sort_order: number } | { key: string; label: string; sort_order: number }[],
+        );
+        if (!resource) return null;
+        return {
+          key: resource.key,
+          label: resource.label,
+          url: row.url as string | null,
+          enabled: row.enabled as boolean,
+        };
+      })
+      .filter((r): r is OrgResource & { enabled: boolean } => r !== null),
+  );
 
   const approvedPosts = sortPosts(
     mapPosts(approvedData as RawPost[] | null, reactionMap, savedIds, adminPairs, signupCounts, userSignups),
@@ -243,9 +267,10 @@ export default async function FeedPage() {
       orgCity={(org?.city as string | null) ?? null}
       groups={groups}
       allGroups={allGroups}
-      resources={filterOrgResources(resources)}
+      resources={resources}
       events={events}
       calendar={calendar}
+      headUserId={headUserId}
       approvedPosts={approvedPosts}
       pendingPosts={pendingPosts}
       myPosts={myPosts}

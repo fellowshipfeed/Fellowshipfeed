@@ -10,6 +10,7 @@ type Props = {
   variant: HeaderVariant;
   group?: FeedGroup | null;
   onLeaveGroup?: () => void;
+  onAskAdmin?: () => void;
 };
 
 const icons: Record<Exclude<HeaderVariant, 'group'>, { bg: string; content: ReactNode }> = {
@@ -58,7 +59,7 @@ const copy: Record<HeaderVariant, { title: string; meta: string }> = {
   explore: { title: 'Explore groups', meta: 'Browse ministries and join the ones that fit you' },
 };
 
-export function FeedHeader({ variant, group, onLeaveGroup }: Props) {
+export function FeedHeader({ variant, group, onLeaveGroup, onAskAdmin }: Props) {
   if (variant === 'group' && group) {
     const palette = getGroupStyleFromGroup(group);
     return (
@@ -88,7 +89,8 @@ export function FeedHeader({ variant, group, onLeaveGroup }: Props) {
         </div>
         <button
           type="button"
-          className="hidden sm:flex items-center gap-1.5 bg-cream-soft border border-line px-3.5 py-2 rounded-md text-xs font-medium text-ink hover:bg-line-soft"
+          onClick={onAskAdmin}
+          className="flex items-center gap-1.5 bg-cream-soft border border-line px-3.5 py-2 rounded-md text-xs font-medium text-ink hover:bg-line-soft shrink-0"
         >
           <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
             <path

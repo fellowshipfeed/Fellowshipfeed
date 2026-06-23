@@ -52,7 +52,13 @@ export type FeedGroup = {
   description?: string | null;
   member_count?: number;
   admin_name?: string | null;
+  admin_user_id?: string | null;
   joined?: boolean;
+};
+
+export type ParishLinks = {
+  parish_website_url: string | null;
+  online_giving_url: string | null;
 };
 
 export type FeedEvent = {

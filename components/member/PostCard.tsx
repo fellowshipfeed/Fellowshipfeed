@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { FeedGroup, FeedPost } from '@/lib/types';
 import { getGroupStyleFromGroup } from '@/lib/group-styles';
 import { formatRelativeTime } from '@/lib/format';
@@ -15,6 +16,7 @@ type Props = {
   showYou?: boolean;
   userId?: string;
   onCancel?: (postId: string) => void;
+  onEdit?: (postId: string, body: string) => Promise<void>;
   onToggleReaction?: (postId: string, kind: string) => void;
   onToggleSave?: (postId: string) => void;
   onSignupUpdate?: (postId: string) => void;
@@ -26,6 +28,7 @@ export function PostCard({
   orgName,
   showYou = false,
   onCancel,
+  onEdit,
   onToggleReaction,
   onToggleSave,
   userId,
@@ -43,6 +46,27 @@ export function PostCard({
   const displayInitials = showYou ? post.author?.initials : post.author?.initials;
   const reactionTotal = totalReactions(post.reactions);
   const myReactions = new Set(post.my_reactions);
+  const [editing, setEditing] = useState(false);
+  const [editBody, setEditBody] = useState(post.body);
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  async function saveEdit() {
+    if (!onEdit) return;
+    const trimmed = editBody.trim();
+    if (!trimmed) return;
+    setSavingEdit(true);
+    try {
+      await onEdit(post.id, trimmed);
+      setEditing(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  function cancelEdit() {
+    setEditBody(post.body);
+    setEditing(false);
+  }
 
   return (
     <article
@@ -111,7 +135,35 @@ export function PostCard({
         </div>
       </div>
 
-      {post.body.trim() ? (
+      {editing ? (
+        <div className="mb-3.5 space-y-2">
+          <textarea
+            value={editBody}
+            onChange={e => setEditBody(e.target.value)}
+            rows={4}
+            autoFocus
+            className="w-full border border-line rounded-md px-3 py-2 text-sm resize-none focus:outline-none focus:border-accent"
+          />
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={saveEdit}
+              disabled={savingEdit || !editBody.trim()}
+              className="text-xs font-medium bg-accent text-white px-3 py-1.5 rounded-md disabled:opacity-60"
+            >
+              {savingEdit ? 'Saving…' : 'Save changes'}
+            </button>
+            <button
+              type="button"
+              onClick={cancelEdit}
+              disabled={savingEdit}
+              className="text-xs font-medium text-ink-soft hover:text-ink px-2 py-1.5"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : post.body.trim() ? (
         <p className="text-sm leading-[1.65] whitespace-pre-wrap text-ink mb-3.5">{post.body.trim()}</p>
       ) : null}
 
@@ -125,16 +177,30 @@ export function PostCard({
         />
       )}
 
-      {isPending && onCancel ? (
+      {isPending && (onCancel || onEdit) ? (
         <div className="flex items-center gap-2 pt-3 border-t border-line-soft">
           <span className="text-xs text-ink-soft flex-1">Visible only to you until a group admin approves it</span>
-          <button
-            type="button"
-            onClick={() => onCancel(post.id)}
-            className="text-xs font-medium text-red-700 hover:bg-red-50 px-2 py-1 rounded"
-          >
-            Cancel
-          </button>
+          {onEdit && !editing && (
+            <button
+              type="button"
+              onClick={() => {
+                setEditBody(post.body);
+                setEditing(true);
+              }}
+              className="text-xs font-medium text-accent hover:bg-accent-soft px-2 py-1 rounded"
+            >
+              Edit
+            </button>
+          )}
+          {onCancel && (
+            <button
+              type="button"
+              onClick={() => onCancel(post.id)}
+              className="text-xs font-medium text-red-700 hover:bg-red-50 px-2 py-1 rounded"
+            >
+              Cancel
+            </button>
+          )}
         </div>
       ) : post.status === 'approved' ? (
         <div className="flex flex-wrap gap-1.5 pt-3 border-t border-line-soft items-center">
