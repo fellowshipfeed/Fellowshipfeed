@@ -138,7 +138,7 @@ export function MemberPortal({
           status: 'pending',
           is_parish_wide: false,
         })
-        .select('id')
+        .select('id, created_at')
         .single();
 
       if (error) throw new Error(error.message);
@@ -153,6 +153,26 @@ export function MemberPortal({
             : new Error('Could not upload attachments. Make sure post-attachments storage is configured.');
         }
       }
+
+      const pendingPost: FeedPost = {
+        id: post.id,
+        body: body || ' ',
+        group_id: groupId,
+        is_parish_wide: false,
+        pinned: false,
+        status: 'pending',
+        created_at: post.created_at,
+        author: { id: session.user_id, name: session.name, initials: session.initials },
+        attachments: [],
+        reactions: { heart: 0, pray: 0, in: 0, amen: 0 },
+        my_reactions: [],
+        saved: false,
+        signup_config: null,
+        signup_count: 0,
+        user_signed_up: false,
+      };
+      setPending(prev => [pendingPost, ...prev]);
+      setMyPosts(prev => [pendingPost, ...prev]);
     }
     router.refresh();
   }
@@ -331,6 +351,7 @@ export function MemberPortal({
 
               {showComposer && (
                 <PostComposer
+                  key={view === 'group' ? `group-${activeGroupId}` : 'home'}
                   userInitials={session.initials}
                   groups={groups}
                   fixedGroupId={view === 'group' ? activeGroupId : null}

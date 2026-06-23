@@ -1,6 +1,6 @@
 'use client';
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { FeedGroup } from '@/lib/types';
 import type { ComposerAttachment } from '@/lib/composer-attachments';
 import { createFileAttachment } from '@/lib/composer-attachments';
@@ -27,6 +27,15 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
   const [message, setMessage] = useState('');
   const mediaInputRef = useRef<HTMLInputElement>(null);
   const pdfInputRef = useRef<HTMLInputElement>(null);
+
+  const targetGroupIds = fixedGroupId ? [fixedGroupId] : Array.from(selected);
+  const fixedGroup = fixedGroupId ? groups.find(g => g.id === fixedGroupId) : null;
+
+  useEffect(() => {
+    if (fixedGroupId) {
+      setSelected(new Set([fixedGroupId]));
+    }
+  }, [fixedGroupId]);
 
   function toggleGroup(id: string) {
     if (fixedGroupId) return;
@@ -86,11 +95,11 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
 
   async function handleSubmit() {
     const hasContent = body.trim().length > 0 || attachments.length > 0;
-    if (!hasContent || selected.size === 0) return;
+    if (!hasContent || targetGroupIds.length === 0) return;
     setSubmitting(true);
     setMessage('');
     try {
-      await onSubmit(body.trim(), Array.from(selected), attachments);
+      await onSubmit(body.trim(), targetGroupIds, attachments);
       attachments.forEach(att => {
         if (att.kind === 'file' && att.previewUrl) URL.revokeObjectURL(att.previewUrl);
       });
@@ -109,7 +118,7 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
   }
 
   const hasContent = body.trim().length > 0 || attachments.length > 0;
-  const canSubmit = hasContent && selected.size > 0 && !submitting;
+  const canSubmit = hasContent && targetGroupIds.length > 0 && !submitting;
 
   return (
     <div className="bg-white border border-line rounded-xl p-4 mb-4">
@@ -175,6 +184,13 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
               onClick={() => toggleGroup(g.id)}
             />
           ))}
+        </div>
+      )}
+
+      {fixedGroup && (
+        <div className="flex items-center gap-2 pb-3 mb-3 border-b border-line-soft pl-[50px]">
+          <span className="text-[11px] text-ink-muted font-medium">Posting to:</span>
+          <GroupChip group={fixedGroup} selected />
         </div>
       )}
 
@@ -275,8 +291,11 @@ export function PostComposer({ userInitials, groups, fixedGroupId, onSubmit }: P
       {message && (
         <div
           className={`mt-2 ml-[50px] text-xs rounded p-2 ${
-            message.includes('valid')
-              ? 'text-ink-soft bg-cream-soft border border-line'
+            message.includes('Could not') ||
+            message.includes('valid') ||
+            message.includes('Error') ||
+            message.includes('upload')
+              ? 'text-red-700 bg-red-50 border border-red-200'
               : 'text-success bg-success-soft border border-success/20'
           }`}
         >
